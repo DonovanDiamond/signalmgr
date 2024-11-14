@@ -32,7 +32,7 @@ import (
 )
 
 func main() {
-    signalmgr.API_URL = "http://localhost:8080"
+	signalmgr.API_URL = "http://localhost:8080"
 
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Print("Enter the number to register to signal: ")
