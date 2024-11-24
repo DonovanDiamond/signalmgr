@@ -41,6 +41,9 @@ func get[T any](path string) (resp T, err error) {
 	if err != nil {
 		return
 	}
+	if len(raw) == 0 {
+		return
+	}
 	err = json.Unmarshal(raw, &resp)
 	return
 }
@@ -58,6 +61,9 @@ func post[T any](path string, data any) (resp T, err error) {
 	req.ContentType("application/json")
 	raw, err := completeRequest(req)
 	if err != nil {
+		return
+	}
+	if len(raw) == 0 {
 		return
 	}
 	err = json.Unmarshal(raw, &resp)
@@ -79,6 +85,9 @@ func put[T any](path string, data any) (resp T, err error) {
 	if err != nil {
 		return
 	}
+	if len(raw) == 0 {
+		return
+	}
 	err = json.Unmarshal(raw, &resp)
 	return
 }
@@ -96,6 +105,9 @@ func delete[T any](path string, data any) (resp T, err error) {
 	req.ContentType("application/json")
 	raw, err := completeRequest(req)
 	if err != nil {
+		return
+	}
+	if len(raw) == 0 {
 		return
 	}
 	err = json.Unmarshal(raw, &resp)
