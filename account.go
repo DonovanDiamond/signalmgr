@@ -240,8 +240,14 @@ func (a *Account) PostQuitGroup(groupID string) (err error) {
 // Receive Signal Messages.
 //
 // Receives Signal Messages from the Signal Network. If you are running the docker container in normal/native mode, this is a GET endpoint. In json-rpc mode this is a websocket endpoint.
-func (a *Account) GetMessages() (messages []signaltypes.MessageEnvelope, err error) {
-	return get[[]signaltypes.MessageEnvelope](fmt.Sprintf("/v1/receive/%s", a.Number))
+func (a *Account) GetMessages() (messages []struct {
+	Envelope signaltypes.MessageEnvelope `json:"envelope"`
+	Account  string                      `json:"account"`
+}, err error) {
+	return get[[]struct {
+		Envelope signaltypes.MessageEnvelope `json:"envelope"`
+		Account  string                      `json:"account"`
+	}](fmt.Sprintf("/v1/receive/%s", a.Number))
 }
 
 // Show Typing Indicator.
