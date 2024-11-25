@@ -4,10 +4,6 @@
 
 `signalmgr` is a Go library designed to interact with the [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) to manage Signal accounts more easily. This library provides a wrapper for the various signal-cli-rest-api endpoints covered in [signal-cli-rest-api swagger docs](https://bbernhard.github.io/signal-cli-rest-api/).
 
-## Limitations
-
-This project doesn't currently support [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) running in `json-rpc` mode, and it has to be run in either `normal` or `native` mode.
-
 ## Installation
 
 You can install the `signalmgr` library using `go get`:
@@ -27,6 +23,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/DonovanDiamond/signalmgr"
 )
@@ -43,7 +40,7 @@ func main() {
 		Number: number,
 	}
 
-	fmt.Print("Enter 'voice' if you want to use a phone call for verification: ")
+	fmt.Print("Enter 'voice' if you want to use a phone call for verification (note this will take longer than SMS verification): ")
 	scanner.Scan()
 	voice := strings.ToLower(scanner.Text())
 
@@ -52,24 +49,70 @@ func main() {
 	scanner.Scan()
 	captcha := scanner.Text()
 
-	err := account.PostRegister(captcha, voice == "voice")
-	if err != nil {
-		log.Fatal(err)
+	if voice == "voice" {
+		err := account.PostRegister(captcha, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Waiting 61 seconds before requesting voice call...")
+		time.Sleep(time.Second * 61)
+
+		fmt.Println("Go to https://signalcaptchas.org/registration/generate.html and complete a new captcha like before.")
+		fmt.Print("Enter the captcha value including “signalcaptcha://”: ")
+		scanner.Scan()
+		captcha := scanner.Text()
+	
+		err = account.PostRegister(captcha, true)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		err := account.PostRegister(captcha, voice == "voice")
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
-	fmt.Print("Please enter the token sent via SMS to the number provided:")
+	fmt.Print("Please enter the token sent via SMS/call to the number provided:")
 	scanner.Scan()
 	token := scanner.Text()
 	fmt.Print("Please enter the PIN for signal (if you have one) or leave this blank:")
 	scanner.Scan()
 	pin := scanner.Text()
 
-	err = account.PostRegisterVerify(token, pin)
+	err := account.PostRegisterVerify(token, pin)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Print("Successfully registered!")
+	log.Println("Successfully registered!")
+
+	fmt.Print("Enter a number to send a test message to (formatted +123456789):")
+	scanner.Scan()
+	numberTo := scanner.Text()
+	fmt.Print("Enter a message to send:")
+	scanner.Scan()
+	message := scanner.Text()
+
+	if _, err := signalmgr.PostSend(signalmgr.SendMessageV2{
+		Number:     account.Number,
+		Recipients: []string{numberTo},
+		Message:    message,
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Print("Send a message to this number and press enter to receive it:")
+	scanner.Scan()
+
+	messages, err := account.GetMessages()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, m := range messages {
+		fmt.Printf(" - %s: %s\n", m.Envelope.SourceNumber, m.Envelope.DataMessage.Message)
+	}
 }
 ```
 
@@ -87,6 +130,8 @@ Each method is based on the methods in [signal-cli-rest-api swagger docs](https:
 
 ### Messaging
 
+- `GetMessages()`: Receive Signal Messages, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `normal` or `native` mode.
+- `GetMessagesSocket(messages chan<- MessageResponse)`: Opens a socket to receive Signal Messages and sends them to the `messages` channel, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `json-rpc` mode.
 - `PostSend(data SendMessageV2)`: Send a message (supports text, mentions, attachments, etc.).
 - `PostReaction(data struct{ Reaction string; Recipient string; Timestamp int64 })`: Send a reaction to a message.
 - `PostReceipt(data struct{ ReceiptType string; Recipient string; Timestamp int64 })`: Send a read/viewed receipt for a message.

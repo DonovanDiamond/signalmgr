@@ -2,8 +2,10 @@ package signalmgr
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/DonovanDiamond/signalmgr/signaltypes"
+	"github.com/gorilla/websocket"
 )
 
 type Account struct {
@@ -237,17 +239,42 @@ func (a *Account) PostQuitGroup(groupID string) (err error) {
 	return
 }
 
-// Receive Signal Messages.
-//
-// Receives Signal Messages from the Signal Network. If you are running the docker container in normal/native mode, this is a GET endpoint. In json-rpc mode this is a websocket endpoint.
-func (a *Account) GetMessages() (messages []struct {
+type MessageResponse struct {
 	Envelope signaltypes.MessageEnvelope `json:"envelope"`
 	Account  string                      `json:"account"`
-}, err error) {
-	return get[[]struct {
-		Envelope signaltypes.MessageEnvelope `json:"envelope"`
-		Account  string                      `json:"account"`
-	}](fmt.Sprintf("/v1/receive/%s", a.Number))
+}
+
+// Receive Signal Messages.
+//
+// Only works if the signal api is running in `normal` or `native` mode. If you are running in `json-rpc` mode, use `GetMessagesSocket`.
+func (a *Account) GetMessages() (messages []MessageResponse, err error) {
+	return get[[]MessageResponse](fmt.Sprintf("/v1/receive/%s", a.Number))
+}
+
+// Opens a socket to receive Signal Messages and sends them to the `messages` channel.
+//
+// Will only return if there is an error or the socket closes.
+//
+// Only works if the signal api is running in `json-rpc` mode. If you are running in `normal` or `native` mode, use `GetMessages`.
+func (a *Account) GetMessagesSocket(messages chan<- MessageResponse) (err error) {
+	baseURL := strings.ReplaceAll(API_URL, "https://", "wss://")
+	baseURL = strings.ReplaceAll(baseURL, "http://", "ws://")
+	fullURL := fmt.Sprintf("%s/v1/receive/%s", baseURL, a.Number)
+
+	c, _, err := websocket.DefaultDialer.Dial(fullURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to dial websocket: %w", err)
+	}
+
+	defer c.Close()
+
+	for {
+		var m MessageResponse
+		if err := c.ReadJSON(&m); err != nil {
+			return fmt.Errorf("error reading from websocket: %w", err)
+		}
+		messages <- m
+	}
 }
 
 // Show Typing Indicator.
