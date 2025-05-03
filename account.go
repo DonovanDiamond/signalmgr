@@ -351,15 +351,15 @@ func (a *Account) DeleteReaction(data struct {
 	return
 }
 
-// Send a receipt.
+// Send receipts.
 //
-// Send a read or viewed receipt.
-func (a *Account) PostReceipt(data struct {
+// Send read or viewed receipts.
+func (a *Account) PostReceipts(data struct {
 	ReceiptType string `json:"receipt_type"`
 	Recipient   string `json:"recipient"`
 	Timestamp   int64  `json:"timestamp"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/receipt/%s", a.Number), data)
+	_, err = post[any](fmt.Sprintf("/v1/receipts/%s", a.Number), data)
 	return
 }
 
