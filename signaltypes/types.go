@@ -204,7 +204,8 @@ type SyncReadMessage struct {
 }
 
 type SyncMessage struct {
-	SentMessage      SyncDataMessage   `json:"sentMessage,omitempty"`
+	// TODO: This had to be changed from SyncDataMessage, find out if this is fine.
+	SentMessage      DataMessage       `json:"sentMessage,omitempty"`
 	SentStoryMessage SyncStoryMessage  `json:"sentStoryMessage,omitempty"`
 	BlockedNumbers   []string          `json:"blockedNumbers,omitempty"`
 	BlockedGroupIds  []string          `json:"blockedGroupIds,omitempty"`

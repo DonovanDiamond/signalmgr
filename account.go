@@ -1,6 +1,7 @@
 package signalmgr
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -242,6 +243,7 @@ func (a *Account) PostQuitGroup(groupID string) (err error) {
 type MessageResponse struct {
 	Envelope signaltypes.MessageEnvelope `json:"envelope"`
 	Account  string                      `json:"account"`
+	Raw      string                      `json:"raw"`
 }
 
 // Receive Signal Messages.
@@ -269,10 +271,20 @@ func (a *Account) GetMessagesSocket(messages chan<- MessageResponse) (err error)
 	defer c.Close()
 
 	for {
-		var m MessageResponse
-		if err := c.ReadJSON(&m); err != nil {
+		// TODO: Probably not the best to unmarshal this 2 times, but I don't currently know a way around this to get the raw json
+		var all = make(map[string]any)
+		if err := c.ReadJSON(&all); err != nil {
 			return fmt.Errorf("error reading from websocket: %w", err)
 		}
+		raw, err := json.Marshal(all)
+		if err != nil {
+			return fmt.Errorf("failed to marshal message from websocket: %w", err)
+		}
+		var m MessageResponse
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return fmt.Errorf("failed to unmarshal message from websocket: %w", err)
+		}
+		m.Raw = string(raw)
 		messages <- m
 	}
 }
