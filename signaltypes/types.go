@@ -186,7 +186,8 @@ type SyncDataMessage struct {
 	DestinationNumber string      `json:"destinationNumber,omitempty"`
 	DestinationUuid   string      `json:"destinationUuid,omitempty"`
 	EditMessage       EditMessage `json:"editMessage,omitempty"`
-	DataMessage       DataMessage `json:"dataMessage,omitempty"`
+	// TODO: See if this data is ever provided in a "dataMessage" field, and not embedded:
+	DataMessage
 }
 
 type SyncStoryMessage struct {
@@ -204,8 +205,7 @@ type SyncReadMessage struct {
 }
 
 type SyncMessage struct {
-	// TODO: This had to be changed from SyncDataMessage, find out if this is fine.
-	SentMessage      DataMessage       `json:"sentMessage,omitempty"`
+	SentMessage      SyncDataMessage   `json:"sentMessage,omitempty"`
 	SentStoryMessage SyncStoryMessage  `json:"sentStoryMessage,omitempty"`
 	BlockedNumbers   []string          `json:"blockedNumbers,omitempty"`
 	BlockedGroupIds  []string          `json:"blockedGroupIds,omitempty"`

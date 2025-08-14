@@ -241,9 +241,9 @@ func (a *Account) PostQuitGroup(groupID string) (err error) {
 }
 
 type MessageResponse struct {
-	Envelope signaltypes.MessageEnvelope `json:"envelope"`
-	Account  string                      `json:"account"`
-	Raw      string                      `json:"raw"`
+	Envelope  signaltypes.MessageEnvelope `json:"envelope"`
+	Account   string                      `json:"account"`
+	RawFields map[string]any              `json:"raw_fields"`
 }
 
 // Receive Signal Messages.
@@ -284,7 +284,7 @@ func (a *Account) GetMessagesSocket(messages chan<- MessageResponse) (err error)
 		if err := json.Unmarshal(raw, &m); err != nil {
 			return fmt.Errorf("failed to unmarshal message from websocket: %w", err)
 		}
-		m.Raw = string(raw)
+		m.RawFields = all
 		messages <- m
 	}
 }
