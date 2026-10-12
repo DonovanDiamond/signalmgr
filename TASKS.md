@@ -7,6 +7,7 @@
 - Never re-run a suite that passed with no change since. Last tested: go test ./... passed on tree of v0.3.0
 - Released: v0.2.0 at 9c9371d (2026-10-12)
 ### Governor log
+- 2026-10-12 — Committed T13 before reading 4 secret-scan hits; checked after: all benign. Rule: inspect scan hits before commit.
 - 2026-10-12 — clean (session start, HEAD d65a5fb)
 - 2026-10-12 — T2 manifest clean; brief changed mid-run (alias dropped), worker complied.
 - 2026-10-12 — T7 manifest accepted; signaltypes per-field claims unverified (structure-only check by orchestrator).
@@ -24,5 +25,6 @@
 - [x] T10 — PathEscape on all path segments; discard-body calls use request(). Governor verified: no [any] left, no unescaped %s path, build/vet rc=0.
 - [x] T11 — api_test.go added (3 tests). Found real bug: fasthttp decoded %2F; fixed via HostClient.DisablePathNormalizing. Governor verified: test FAILs without fix, all pass with it. Tagged v0.3.0.
 - [ ] Backlog: tests cover api.go only; per-endpoint tests none.
-- [ ] T13 — Build "Signal Gateway" app (Exchange design) in gateway/ — plan: scratchpad/plans/gateway-plan.md. User away for hours: no questions, log them in gateway/QUESTIONS.md. Phase 1 (Lane 2, orchestrator, 2026-10-12): scaffold + backend + fakesignal + UI ledger + screenshots.
+- [x] T13 — Signal Gateway phase 1 committed 9659e5a. Governor verified: go test -count=1 all ok, vet/gofmt clean; LOOKED at 9 screenshots (ledger light/dark/390, login, register, verify, link, unregister, unreachable) — matches Exchange. Secret scan clean.
+- [ ] T14 — Phase 2 (scratchpad/plans/gateway-phase2.md): linking correctness (gateway-link vs add-device-to-number), UI fixes seen in screenshots, refresh tokens, user mgmt, trusted proxies, AD timeout, clean-clone build, dev seed. Lane 2, orchestrator, budget 60 min.
 - [x] T12 — Device-registration UI: 5 design renditions (published v3, all 5 files read by Governor before publish; not rendered/screenshotted) on a Design canvas (https://claude.ai/artifact/5KafbQcfDsVFEMazbRhsh5). Plan: scratchpad/plans/ui-renditions.md. 5 × sonnet-coder in parallel, one artboard each (disjoint). 2026-10-12, budget 6 min each. User override: evergreen browsers, not Firefox ESR 115 → record in QUESTIONS.md when the app is scaffolded.
