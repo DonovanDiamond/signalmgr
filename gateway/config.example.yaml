@@ -1,0 +1,33 @@
+# Copy to config.yaml. Every key is optional; the values below are the defaults.
+installation_name: Signal Gateway
+listen: ":8080"
+timezone: UTC
+db: data/gateway.db
+
+# Where signal-cli-rest-api listens. TLS is left to a reverse proxy in front of the gateway.
+signal_api_url: http://127.0.0.1:8081
+
+jwt:
+  # Both files are generated on first run when neither exists.
+  private_key_path: data/jwt_private.pem
+  public_key_path: data/jwt_public.pem
+  token_ttl: 8h
+
+# Used only on an empty database. With no password, one is generated and logged once at WARN.
+# SIGNALGW_ADMIN_USERNAME and SIGNALGW_ADMIN_PASSWORD override these (minimum 12 characters).
+first_admin:
+  username: admin
+  password: ""
+
+# Active Directory is off unless enabled. Someone in none of the mapped groups cannot sign in.
+ad:
+  enabled: false
+  # server: dc01.example.org
+  # port: 636
+  # base_dn: DC=example,DC=org
+  # security: tls            # none, tls or starttls
+  # bind_dn: CN=svc-gateway,OU=Service,DC=example,DC=org
+  # bind_password: ""
+  # group_map:
+  #   Signal Admins: admin
+  #   Signal Viewers: user

@@ -24,3 +24,5 @@
 - [x] T10 — PathEscape on all path segments; discard-body calls use request(). Governor verified: no [any] left, no unescaped %s path, build/vet rc=0.
 - [x] T11 — api_test.go added (3 tests). Found real bug: fasthttp decoded %2F; fixed via HostClient.DisablePathNormalizing. Governor verified: test FAILs without fix, all pass with it. Tagged v0.3.0.
 - [ ] Backlog: tests cover api.go only; per-endpoint tests none.
+- [ ] T13 — Build "Signal Gateway" app (Exchange design) in gateway/ — plan: scratchpad/plans/gateway-plan.md. User away for hours: no questions, log them in gateway/QUESTIONS.md. Phase 1 (Lane 2, orchestrator, 2026-10-12): scaffold + backend + fakesignal + UI ledger + screenshots.
+- [x] T12 — Device-registration UI: 5 design renditions (published v3, all 5 files read by Governor before publish; not rendered/screenshotted) on a Design canvas (https://claude.ai/artifact/5KafbQcfDsVFEMazbRhsh5). Plan: scratchpad/plans/ui-renditions.md. 5 × sonnet-coder in parallel, one artboard each (disjoint). 2026-10-12, budget 6 min each. User override: evergreen browsers, not Firefox ESR 115 → record in QUESTIONS.md when the app is scaffolded.

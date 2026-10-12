@@ -26,3 +26,6 @@ Receiving messages:
 - Per-account types are prefixed `Account_` (e.g. `Account_Configuration`).
 - Optional query params: one `<Method>Options` struct per call (e.g. `GetGroupsOptions`); zero value = omitted. Built with `url.Values` and appended via `withQuery`.
 - Binary responses (avatars, QR code, attachments) use `getRaw` and return `[]byte`.
+
+## gateway/ (Signal Gateway app)
+Separate Go module; see gateway/ARCHITECTURE.md and gateway/CODE-BLOCKS-REFERENCE.md.

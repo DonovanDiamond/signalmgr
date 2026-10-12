@@ -48,3 +48,6 @@
 
 ## api_test.go
 - httptest tests: escaped path segment survives (DisablePathNormalizing), plain-text discarded body OK, *APIError with challenge_tokens
+
+## gateway/
+- Signal Gateway web app (nested module) — index in gateway/CODE-BLOCKS-REFERENCE.md
