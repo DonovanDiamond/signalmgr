@@ -81,7 +81,7 @@ func (a *Account) PostRegisterVerify(token string, pin string) error {
 // Unregister a phone number.
 //
 // Disables push support for this device. **WARNING:** If *delete_account* is set to *true*, the account will be deleted from the Signal Server. This cannot be undone without loss.
-func (a *Account) PostUnregistert(data struct {
+func (a *Account) PostUnregister(data struct {
 	DeleteAccount   bool `json:"delete_account"`
 	DeleteLocalData bool `json:"delete_local_data"`
 }) (err error) {

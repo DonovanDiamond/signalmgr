@@ -125,7 +125,7 @@ Each method is based on the methods in [signal-cli-rest-api swagger docs](https:
 - `GetAccounts()`: Lists all Signal accounts linked to the service.
 - `PostRegister(captcha string, useVoice bool)`: Register a phone number with the Signal network.
 - `PostRegisterVerify(token string, pin string)`: Verify a registered phone number.
-- `PostUnregistert(data struct{ DeleteAccount bool; DeleteLocalData bool })`: Unregister a phone number and optionally delete its data.
+- `PostUnregister(data struct{ DeleteAccount bool; DeleteLocalData bool })`: Unregister a phone number and optionally delete its data.
 - `PostUsername(data struct{ Username string })`: Set a username for the account.
 
 ### Messaging
@@ -134,7 +134,7 @@ Each method is based on the methods in [signal-cli-rest-api swagger docs](https:
 - `GetMessagesSocket(messages chan<- MessageResponse)`: Opens a socket to receive Signal Messages and sends them to the `messages` channel, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `json-rpc` mode.
 - `PostSend(data SendMessageV2)`: Send a message (supports text, mentions, attachments, etc.).
 - `PostReaction(data struct{ Reaction string; Recipient string; Timestamp int64 })`: Send a reaction to a message.
-- `PostReceipt(data struct{ ReceiptType string; Recipient string; Timestamp int64 })`: Send a read/viewed receipt for a message.
+- `PostReceipts(data struct{ ReceiptType string; Recipient string; Timestamp int64 })`: Send a read/viewed receipt for a message.
 
 ### Contacts
 

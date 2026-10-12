@@ -20,7 +20,7 @@
 ## account.go — per-account calls
 - `Account`, `GetAccounts` — account.go:12–19 — account type + list
 - `Account_Configuration`, (a) `GetConfiguration`, `PostConfiguration` — account.go:32–42 — account config
-- (a) `PostLinkDevice`, `PostRegister`, `PostRegisterVerify`, `PostUnregistert`, `PostRateLimitChallenge`, `PutSettings` — account.go:48–106 — registration/settings
+- (a) `PostLinkDevice`, `PostRegister`, `PostRegisterVerify`, `PostUnregister`, `PostRateLimitChallenge`, `PutSettings` — account.go:48–106 — registration/settings
 - `Account_PostUsernameResponse`, (a) `PostUsername`, `DeleteUsername` — account.go:114–131 — username
 - `Group`, (a) `GetGroups`, `PostCreateGroup`, `GetGroup`, `PutGroupSettings`, `DeleteGroup` — account.go:136–188 — groups
 - (a) `PostGroupAdmins`, `DeleteGroupAdmins`, `PostBlockGroup`, `PostJoinGroup`, `PostGroupMembers`, `DeleteGroupMembers`, `PostQuitGroup` — account.go:194–238 — group membership

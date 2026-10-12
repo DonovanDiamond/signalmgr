@@ -7,7 +7,9 @@
 - Never re-run a suite that passed with no change since. Last tested: none
 ### Governor log
 - 2026-10-12 — clean (session start, HEAD d65a5fb)
+- 2026-10-12 — T2 manifest clean; brief changed mid-run (alias dropped), worker complied.
 
 ## Tasks
 - [x] T1 — Generate ARCHITECTURE.md + CODE-BLOCKS-REFERENCE.md (Lane 0; survey via haiku-scout, declarations verified by grep). Uncommitted.
-- [ ] Noted, not actioned: `PostUnregistert` typo (account.go:84); README says PostReaction/PostReceipt, code has PostReceipts.
+- [x] T2 — Renamed PostUnregistert → PostUnregister (old name dropped per user — BREAKING, bump version at next tag) + README names fixed. Build+vet rc=0 verified by Governor.
+- [ ] Open: README omits DeleteReaction (not added — names-only fix).
