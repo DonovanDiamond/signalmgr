@@ -5,7 +5,7 @@
 - Verified / reported / missing are three different things. I never present the last two as the first.
 - Nobody waits. Over budget = one check, then kill, then re-read git state before re-dispatching.
 - Never re-run a suite that passed with no change since. Last tested: go test ./... passed on tree of v0.3.0
-- Released: v0.2.0 at 9c9371d (2026-10-12)
+- Released: v0.2.0 at 9c9371d, v0.3.0, v0.4.0 (2026-10-12)
 ### Governor log
 - 2026-10-12 — Committed T13 before reading 4 secret-scan hits; checked after: all benign. Rule: inspect scan hits before commit.
 - 2026-10-12 — clean (session start, HEAD d65a5fb)
@@ -29,5 +29,5 @@
 - [x] T14 — Phase 2 committed e4cd242. Governor verified: go test -count=1 all ok, vet/gofmt clean, staged-diff secret scan clean; LOOKED at 6 p2 shots (ledger light 1440, dark 390, add-device, users, account menu 390, verify). Reported only: proxy/refresh tests not run against old code.
 - [x] T15 — Phase 3 polish (3 × Lane 1): no page shift/strip (daisyUI scroll lock off), account-menu header, 390 button widths, cross-platform .gitkeep, disabled buttons always explain why, muted example placeholders (4.77:1 / 5.24:1 reported). Governor LOOKED at p3/p4/p5 shots; go test -count=1 ok.
 - [x] T16 — gateway/Dockerfile + gateway/example/ (signal-cli-rest-api 0.101 json-rpc + gateway; profile fake). Governor read Dockerfile + compose; compose config parses (reported); native build+run+login against fake (reported). NOT run in Docker (daemon permission denied).
-- [ ] Open for user: gateway/QUESTIONS.md (token_ttl alias, AD abandoned-bind cap, refresh reuse detection, + Phase 1 items). Not pushed.
+- [ ] Open for user: gateway/QUESTIONS.md (token_ttl alias, AD abandoned-bind cap, refresh reuse detection, + Phase 1 items). Gateway pushed 2026-10-12 (origin/main = 53d4017).
 - [x] T12 — Device-registration UI: 5 design renditions (published v3, all 5 files read by Governor before publish; not rendered/screenshotted) on a Design canvas (https://claude.ai/artifact/5KafbQcfDsVFEMazbRhsh5). Plan: scratchpad/plans/ui-renditions.md. 5 × sonnet-coder in parallel, one artboard each (disjoint). 2026-10-12, budget 6 min each. User override: evergreen browsers, not Firefox ESR 115 → record in QUESTIONS.md when the app is scaffolded.
