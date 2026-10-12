@@ -222,7 +222,7 @@ func (a *Account) PostJoinGroup(groupID string) (err error) {
 func (a *Account) PostGroupMembers(groupID string, data struct {
 	Members []string `json:"members"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/groups/%s/%s/members", a.Number, groupID), nil)
+	_, err = post[any](fmt.Sprintf("/v1/groups/%s/%s/members", a.Number, groupID), data)
 	return
 }
 
@@ -230,7 +230,7 @@ func (a *Account) PostGroupMembers(groupID string, data struct {
 func (a *Account) DeleteGroupMembers(groupID string, data struct {
 	Members []string `json:"members"`
 }) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/groups/%s/%s/members", a.Number, groupID), nil)
+	_, err = delete[any](fmt.Sprintf("/v1/groups/%s/%s/members", a.Number, groupID), data)
 	return
 }
 

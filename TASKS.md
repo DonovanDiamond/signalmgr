@@ -14,4 +14,5 @@
 - [x] T2 — Renamed PostUnregistert → PostUnregister (old name dropped per user — BREAKING, bump version at next tag) + README names fixed. Build+vet rc=0 verified by Governor.
 - [x] T3 — Added DeleteReaction to README, pushed (Lane 1, diff verified by Governor).
 - [x] T4 — README signatures fixed (Post/DeleteReaction TargetAuthor, PostContact, PostCreateGroup); api.go errorResposne → errorResponse. Build+vet rc=0 verified by Governor.
-- [ ] T5 — Bug: PostGroupMembers/DeleteGroupMembers send nil instead of data (account.go:222–235). Verified by Governor. Lane 1, sonnet-coder, 2026-10-12, budget 6 min.
+- [x] T5 — PostGroupMembers/DeleteGroupMembers now send data (were nil). Diff + build/vet rc=0 verified by Governor; not tested against a live server.
+- [ ] Open: add return values to README bullets? (asked user)
