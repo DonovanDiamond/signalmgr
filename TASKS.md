@@ -18,4 +18,5 @@
 - [x] T5 — PostGroupMembers/DeleteGroupMembers now send data (were nil). Diff + build/vet rc=0 verified by Governor; not tested against a live server.
 - [x] T6 — README: return values on all 26 method bullets (reported count); 7 spot-checked vs code by Governor. Pushed.
 - [x] T7 — Code aligned with signal-cli-rest-api 0.101 swagger (orchestrator, 4 coders, ~4 min reported). Governor verified: build/vet/gofmt rc=0, tag 0.101, contacts PUT, sync POST, /v1/search/{number}, health 204, config path, api.go read in full. signaltypes field list = reported only.
-- [ ] T8 — Expose send-error challenge_tokens via exported APIError (Lane 1, sonnet-coder, 2026-10-12, budget 6 min).
+- [x] T8 — Exported APIError (status, message, account, challenge_tokens) replaces errorResponse. Diff read + build/vet rc=0 verified by Governor; non-2xx path not exercised. Pushed with T7.
+- [ ] Backlog (not bugs): ~15 unwrapped 0.101 endpoints + optional query params (list in T7 manifest); no tests in repo.

@@ -189,6 +189,15 @@ Each method is based on the methods in [signal-cli-rest-api swagger docs](https:
 - `GetAttachment(id string) ([]byte, error)`: Serve an attachment by its ID.
 - `DeleteAttachment(id string) error`: Delete an attachment by its ID.
 
+### Errors
+
+Non-2xx responses are returned as `*signalmgr.APIError`:
+
+```go
+var apiErr *signalmgr.APIError
+if errors.As(err, &apiErr) { fmt.Println(apiErr.Status, apiErr.ChallengeTokens) }
+```
+
 ## Related Projects
 
 - [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) - Signal CLI REST API that this library interacts with.

@@ -12,8 +12,25 @@ import (
 
 var API_URL = "http://127.0.0.1:8080"
 
-type errorResponse struct {
-	Error string `json:"error"`
+// APIError is returned for any non-2xx response. Account and ChallengeTokens
+// are only set by endpoints that report them, e.g. a rate-limited /v2/send.
+type APIError struct {
+	Method          string   `json:"-"`
+	Path            string   `json:"-"`
+	Status          int      `json:"-"`
+	Message         string   `json:"error"`
+	Account         string   `json:"account"`
+	ChallengeTokens []string `json:"challenge_tokens"`
+
+	// Set when Message is the raw body because it had no JSON error field.
+	rawBody bool
+}
+
+func (e *APIError) Error() string {
+	if e.rawBody {
+		return fmt.Sprintf("%s %s: status %d and response received: %s", e.Method, e.Path, e.Status, e.Message)
+	}
+	return fmt.Sprintf("%s %s: status %d: %s", e.Method, e.Path, e.Status, strings.ReplaceAll(e.Message, "\n", ""))
 }
 
 type params map[string]string
@@ -53,11 +70,12 @@ func request(method, path string, data any) (raw []byte, err error) {
 	}
 	if status < 200 || status > 299 {
 		// Only error statuses carry an error body.
-		var errResp errorResponse
-		if json.Unmarshal(raw, &errResp); errResp.Error != "" {
-			return nil, fmt.Errorf("%s %s: status %d: %s", method, path, status, strings.ReplaceAll(errResp.Error, "\n", ""))
+		apiErr := &APIError{Method: method, Path: path, Status: status}
+		json.Unmarshal(raw, apiErr)
+		if apiErr.Message == "" {
+			apiErr.Message, apiErr.rawBody = string(raw), true
 		}
-		return nil, fmt.Errorf("%s %s: status %d and response received: %s", method, path, status, raw)
+		return nil, apiErr
 	}
 	return raw, nil
 }
