@@ -11,6 +11,8 @@ make logs
 
 `make` with no target lists every target. The targets wrap `docker compose -f compose.yaml ...`; `make up` is `docker compose up -d --build`. They also work from elsewhere with `make -C gateway/example up`.
 
+The targets run docker through `sudo` by default; pass `DOCKER=docker` (for example `make up DOCKER=docker`) to skip it.
+
 The gateway is at <http://127.0.0.1:8090>. It is published on the loopback address only; it speaks plain HTTP, so put a reverse proxy that terminates TLS in front of it before anyone else uses it, and list the proxy in `trusted_proxies` in `config.yaml`.
 
 ## Sign in

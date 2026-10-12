@@ -1,6 +1,7 @@
 # Run from anywhere: make -C gateway/example <target>
 DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-DC := docker compose -f $(DIR)compose.yaml
+DOCKER ?= sudo docker
+DC = $(DOCKER) compose -f $(DIR)compose.yaml
 FAKE_VOLUME := signal-gateway-example_gateway-fake-data
 
 .PHONY: help up fake down logs password ps build reset fake-reset
@@ -54,4 +55,4 @@ reset:
 
 fake-reset:
 	$(DC) --profile fake rm -sf gateway-fake fake-seed fakesignal
-	docker volume rm $(FAKE_VOLUME)
+	$(DOCKER) volume rm $(FAKE_VOLUME)
