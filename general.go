@@ -1,9 +1,6 @@
 package signalmgr
 
-import (
-	"encoding/json"
-	"fmt"
-)
+import "fmt"
 
 type GetAboutResponse struct {
 	Build        int                 `json:"build"`
@@ -13,9 +10,9 @@ type GetAboutResponse struct {
 	Versions     []string            `json:"versions"`
 }
 
-// List all accounts.
+// Get API information.
 //
-// Lists all of the accounts linked or registered.
+// Returns the build, mode, version and capabilities of the REST API.
 func GetAbout() (resp GetAboutResponse, err error) {
 	return get[GetAboutResponse]("/v1/about")
 }
@@ -23,8 +20,9 @@ func GetAbout() (resp GetAboutResponse, err error) {
 // API Health Check.
 //
 // Internally used by the docker container to perform the health check.
-func GetHealth() (resp string, err error) {
-	return get[string]("/v1/health")
+func GetHealth() (err error) {
+	_, err = getRaw("/v1/health")
+	return
 }
 
 type Configuration struct {
@@ -35,7 +33,7 @@ type Configuration struct {
 
 // List the REST API configuration.
 func GetConfiguration() (resp Configuration, err error) {
-	return get[Configuration]("/v1/about")
+	return get[Configuration]("/v1/configuration")
 }
 
 // Set the REST API configuration.
@@ -45,8 +43,10 @@ func PostConfiguration(data Configuration) (err error) {
 }
 
 // Link device and generate QR code.
-func GetLinkAccountQRCode(deviceName string) (link string, err error) {
-	return get[string]("/v1/qrcodelink?" + encodeParams(params{"device_name": deviceName}))
+//
+// Returns the QR code as a PNG image.
+func GetLinkAccountQRCode(deviceName string) (png []byte, err error) {
+	return getRaw("/v1/qrcodelink?" + encodeParams(params{"device_name": deviceName}))
 }
 
 type SendMessageV2_MessageMention struct {
@@ -55,31 +55,48 @@ type SendMessageV2_MessageMention struct {
 	Author string `json:"author"`
 }
 
+type SendMessageV2_LinkPreview struct {
+	Base64Thumbnail string `json:"base64_thumbnail,omitempty"`
+	Description     string `json:"description,omitempty"`
+	Title           string `json:"title,omitempty"`
+	URL             string `json:"url,omitempty"`
+}
+
 type SendMessageV2 struct {
 	Number            string                         `json:"number"`
 	Recipients        []string                       `json:"recipients"`
 	Message           string                         `json:"message"`
-	Base64Attachments []string                       `json:"base64_attachments" example:"<BASE64 ENCODED DATA>,data:<MIME-TYPE>;base64<comma><BASE64 ENCODED DATA>,data:<MIME-TYPE>;filename=<FILENAME>;base64<comma><BASE64 ENCODED DATA>"`
-	Sticker           string                         `json:"sticker"`
-	Mentions          []SendMessageV2_MessageMention `json:"mentions"`
-	QuoteTimestamp    *int64                         `json:"quote_timestamp"`
-	QuoteAuthor       *string                        `json:"quote_author"`
-	QuoteMessage      *string                        `json:"quote_message"`
-	QuoteMentions     []SendMessageV2_MessageMention `json:"quote_mentions"`
-	TextMode          *string                        `json:"text_mode" enums:"normal,styled"`
-	EditTimestamp     *int64                         `json:"edit_timestamp"`
-	NotifySelf        *bool                          `json:"notify_self"`
+	Base64Attachments []string                       `json:"base64_attachments,omitempty" example:"<BASE64 ENCODED DATA>,data:<MIME-TYPE>;base64<comma><BASE64 ENCODED DATA>,data:<MIME-TYPE>;filename=<FILENAME>;base64<comma><BASE64 ENCODED DATA>"`
+	Sticker           string                         `json:"sticker,omitempty"`
+	Mentions          []SendMessageV2_MessageMention `json:"mentions,omitempty"`
+	QuoteTimestamp    *int64                         `json:"quote_timestamp,omitempty"`
+	QuoteAuthor       *string                        `json:"quote_author,omitempty"`
+	QuoteMessage      *string                        `json:"quote_message,omitempty"`
+	QuoteMentions     []SendMessageV2_MessageMention `json:"quote_mentions,omitempty"`
+	TextMode          *string                        `json:"text_mode,omitempty" enums:"normal,styled"`
+	EditTimestamp     *int64                         `json:"edit_timestamp,omitempty"`
+	NotifySelf        *bool                          `json:"notify_self,omitempty"`
+	LinkPreview       *SendMessageV2_LinkPreview     `json:"link_preview,omitempty"`
+	ViewOnce          *bool                          `json:"view_once,omitempty"`
+}
+
+type SendMessageResponse struct {
+	Timestamp string `json:"timestamp"`
+	Errors    struct {
+		Recipients []struct {
+			Number   string `json:"number"`
+			Reason   string `json:"reason"`
+			Username string `json:"username"`
+			UUID     string `json:"uuid"`
+		} `json:"recipients"`
+	} `json:"errors"`
 }
 
 // Send a signal message.
 //
 // Send a signal message. Set the text_mode to 'styled' in case you want to add formatting to your text message. Styling Options: *italic text*, **bold text**, ~strikethrough text~.
-func PostSend(data SendMessageV2) (resp struct {
-	Timestamp string `json:"timestamp"`
-}, err error) {
-	return post[struct {
-		Timestamp string `json:"timestamp"`
-	}]("/v2/send", data)
+func PostSend(data SendMessageV2) (resp SendMessageResponse, err error) {
+	return post[SendMessageResponse]("/v2/send", data)
 }
 
 // List all attachments.
@@ -102,20 +119,4 @@ func GetAttachment(id string) (raw []byte, err error) {
 func DeleteAttachment(id string) (err error) {
 	_, err = delete[any](fmt.Sprintf("/v1/attachments/%s", id), nil)
 	return
-}
-
-type SearchResult struct {
-	Number     string `json:"number"`
-	Registered bool   `json:"registered"`
-}
-
-// Check if one or more phone numbers are registered with the Signal Service.
-func GetSearch(numbers []string) (results []SearchResult, err error) {
-	numbersJSON, err := json.Marshal(numbers)
-	if err != nil {
-		return
-	}
-	return get[[]SearchResult]("/v1/search?" + encodeParams(params{
-		"message": string(numbersJSON),
-	}))
 }

@@ -3,6 +3,7 @@ package signalmgr
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/DonovanDiamond/signalmgr/signaltypes"
@@ -104,8 +105,8 @@ func (a *Account) PostRateLimitChallenge(data struct {
 //
 // Update the account attributes on the signal server.
 func (a *Account) PutSettings(data struct {
-	DiscoverableByNumber bool `json:"discoverable_by_number"`
-	ShareNumber          bool `json:"share_number"`
+	DiscoverableByNumber *bool `json:"discoverable_by_number,omitempty"`
+	ShareNumber          *bool `json:"share_number,omitempty"`
 }) (err error) {
 	_, err = put[any](fmt.Sprintf("/v1/accounts/%s/settings", a.Number), data)
 	return
@@ -133,16 +134,25 @@ func (a *Account) DeleteUsername() (err error) {
 	return
 }
 
+type GroupPermissions struct {
+	AddMembers   string `json:"add_members"`
+	EditGroup    string `json:"edit_group"`
+	SendMessages string `json:"send_messages"`
+}
+
 type Group struct {
-	Admins          []string `json:"admins"`
-	Blocked         bool     `json:"blocked"`
-	ID              string   `json:"id"`
-	InternalID      string   `json:"internal_id"`
-	InviteLink      string   `json:"invite_link"`
-	Members         []string `json:"members"`
-	Name            string   `json:"name"`
-	PendingInvites  []string `json:"pending_invites"`
-	PendingRequests []string `json:"pending_requests"`
+	Admins          []string         `json:"admins"`
+	Blocked         bool             `json:"blocked"`
+	Description     string           `json:"description"`
+	ID              string           `json:"id"`
+	InternalID      string           `json:"internal_id"`
+	InviteLink      string           `json:"invite_link"`
+	Member          bool             `json:"member"`
+	Members         []string         `json:"members"`
+	Name            string           `json:"name"`
+	Permissions     GroupPermissions `json:"permissions"`
+	PendingInvites  []string         `json:"pending_invites"`
+	PendingRequests []string         `json:"pending_requests"`
 }
 
 // List all Signal Groups.
@@ -152,15 +162,12 @@ func (a *Account) GetGroups() (groups []Group, err error) {
 
 // Create a new Signal Group with the specified members.
 func (a *Account) PostCreateGroup(data struct {
-	Description    string   `json:"description"`
-	ExpirationTime int      `json:"expiration_time"`
-	GroupLink      string   `json:"group_link"`
-	Members        []string `json:"members"`
-	Name           string   `json:"name"`
-	Permissions    struct {
-		AddMembers string `json:"add_members"`
-		EditGroup  string `json:"edit_group"`
-	} `json:"permissions"`
+	Description    string            `json:"description,omitempty"`
+	ExpirationTime int               `json:"expiration_time,omitempty"`
+	GroupLink      string            `json:"group_link,omitempty"`
+	Members        []string          `json:"members"`
+	Name           string            `json:"name"`
+	Permissions    *GroupPermissions `json:"permissions,omitempty"`
 }) (resp struct {
 	ID string `json:"id"`
 }, err error) {
@@ -176,9 +183,12 @@ func (a *Account) GetGroup(groupID string) (group Group, err error) {
 
 // Update the state of a Signal Group.
 func (a *Account) PutGroupSettings(groupID string, data struct {
-	Base64Avatar string `json:"base64_avatar"`
-	Description  string `json:"description"`
-	Name         string `json:"name"`
+	Base64Avatar   *string           `json:"base64_avatar,omitempty"`
+	Description    *string           `json:"description,omitempty"`
+	ExpirationTime *int              `json:"expiration_time,omitempty"`
+	GroupLink      *string           `json:"group_link,omitempty"`
+	Name           *string           `json:"name,omitempty"`
+	Permissions    *GroupPermissions `json:"permissions,omitempty"`
 }) (err error) {
 	_, err = put[any](fmt.Sprintf("/v1/groups/%s/%s", a.Number, groupID), data)
 	return
@@ -259,8 +269,12 @@ func (a *Account) GetMessages() (messages []MessageResponse, err error) {
 //
 // Only works if the signal api is running in `json-rpc` mode. If you are running in `normal` or `native` mode, use `GetMessages`.
 func (a *Account) GetMessagesSocket(messages chan<- MessageResponse) (err error) {
-	baseURL := strings.ReplaceAll(API_URL, "https://", "wss://")
-	baseURL = strings.ReplaceAll(baseURL, "http://", "ws://")
+	baseURL := strings.TrimSuffix(API_URL, "/")
+	if strings.HasPrefix(baseURL, "https://") {
+		baseURL = "wss://" + strings.TrimPrefix(baseURL, "https://")
+	} else if strings.HasPrefix(baseURL, "http://") {
+		baseURL = "ws://" + strings.TrimPrefix(baseURL, "http://")
+	}
 	fullURL := fmt.Sprintf("%s/v1/receive/%s", baseURL, a.Number)
 
 	c, _, err := websocket.DefaultDialer.Dial(fullURL, nil)
@@ -308,9 +322,9 @@ func (a *Account) DeleteTypingIndicator(data struct {
 // Update Profile.
 //
 // Set your name and optional an avatar.
-func (a *Account) PostProfile(data struct {
-	About        string `json:"about"`
-	Base64Avatar string `json:"base64_avatar"`
+func (a *Account) PutProfile(data struct {
+	About        string `json:"about,omitempty"`
+	Base64Avatar string `json:"base64_avatar,omitempty"`
 	Name         string `json:"name"`
 }) (err error) {
 	_, err = put[any](fmt.Sprintf("/v1/profiles/%s", a.Number), data)
@@ -323,6 +337,7 @@ type Identity struct {
 	Number       string `json:"number"`
 	SafetyNumber string `json:"safety_number"`
 	Status       string `json:"status"`
+	UUID         string `json:"uuid"`
 }
 
 // List all identities for the given number.
@@ -354,7 +369,7 @@ func (a *Account) PostReaction(data struct {
 
 // Remove a reaction.
 func (a *Account) DeleteReaction(data struct {
-	Reaction     string `json:"reaction"`
+	Reaction     string `json:"reaction,omitempty"`
 	Recipient    string `json:"recipient"`
 	TargetAuthor string `json:"target_author"`
 	Timestamp    int64  `json:"timestamp"`
@@ -399,15 +414,33 @@ func (a *Account) PostStickerPack(data struct {
 	return
 }
 
+type Contact_Nickname struct {
+	FamilyName string `json:"family_name"`
+	GivenName  string `json:"given_name"`
+	Name       string `json:"name"`
+}
+
+type Contact_Profile struct {
+	About                string `json:"about"`
+	GivenName            string `json:"given_name"`
+	HasAvatar            bool   `json:"has_avatar"`
+	LastUpdatedTimestamp int64  `json:"last_updated_timestamp"`
+	Lastname             string `json:"lastname"`
+}
+
 type Contact struct {
-	Blocked           bool   `json:"blocked"`
-	Color             string `json:"color"`
-	MessageExpiration string `json:"message_expiration"`
-	Name              string `json:"name"`
-	Number            string `json:"number"`
-	ProfileName       string `json:"profile_name"`
-	Username          string `json:"username"`
-	UUID              string `json:"uuid"`
+	Blocked           bool             `json:"blocked"`
+	Color             string           `json:"color"`
+	GivenName         string           `json:"given_name"`
+	MessageExpiration string           `json:"message_expiration"`
+	Name              string           `json:"name"`
+	Nickname          Contact_Nickname `json:"nickname"`
+	Note              string           `json:"note"`
+	Number            string           `json:"number"`
+	Profile           Contact_Profile  `json:"profile"`
+	ProfileName       string           `json:"profile_name"`
+	Username          string           `json:"username"`
+	UUID              string           `json:"uuid"`
 }
 
 // List Contacts.
@@ -418,17 +451,28 @@ func (a *Account) GetContacts() (contacts []Contact, err error) {
 }
 
 // Updates the info associated to a number on the contact list. If the contact doesn’t exist yet, it will be added.
-func (a *Account) PostContact(data struct {
-	ExpirationInSeconds int    `json:"expiration_in_seconds"`
-	Name                string `json:"name"`
+func (a *Account) PutContact(data struct {
+	ExpirationInSeconds int    `json:"expiration_in_seconds,omitempty"`
+	Name                string `json:"name,omitempty"`
 	Recipient           string `json:"recipient"`
-}) (contacts []Contact, err error) {
-	_, err = post[any](fmt.Sprintf("/v1/contacts/%s", a.Number), data)
+}) (err error) {
+	_, err = put[any](fmt.Sprintf("/v1/contacts/%s", a.Number), data)
 	return
 }
 
 // Send a synchronization message with the local contacts list to all linked devices. This command should only be used if this is the primary device.
-func (a *Account) PutContactsSync() (err error) {
-	_, err = put[any](fmt.Sprintf("/v1/contacts/%s/sync", a.Number), nil)
+func (a *Account) PostContactsSync() (err error) {
+	_, err = post[any](fmt.Sprintf("/v1/contacts/%s/sync", a.Number), nil)
 	return
+}
+
+type SearchResult struct {
+	Number     string `json:"number"`
+	Registered bool   `json:"registered"`
+}
+
+// Check if one or more phone numbers are registered with the Signal Service.
+func (a *Account) GetSearch(numbers []string) (results []SearchResult, err error) {
+	q := url.Values{"numbers": numbers}
+	return get[[]SearchResult](fmt.Sprintf("/v1/search/%s?%s", a.Number, q.Encode()))
 }

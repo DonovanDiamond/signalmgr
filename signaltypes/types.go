@@ -2,7 +2,7 @@ package signaltypes
 
 type Payment struct {
 	Note    string `json:"note,omitempty"`
-	Receipt []byte `json:"receipt,omitempty"`
+	Receipt string `json:"receipt,omitempty"`
 }
 
 type StoryContext struct {
@@ -14,14 +14,14 @@ type StoryContext struct {
 type GroupInfo struct {
 	GroupId   string `json:"groupId,omitempty"`
 	GroupName string `json:"groupName,omitempty"`
-	Revision  int    `json:"revision,omitempty"`
+	Revision  int64  `json:"revision,omitempty"`
 	Type      string `json:"type,omitempty"`
 }
 
 type TextStyle struct {
 	Style  string `json:"style,omitempty"`
-	Start  int    `json:"start,omitempty"`
-	Length int    `json:"length,omitempty"`
+	Start  int64  `json:"start,omitempty"`
+	Length int64  `json:"length,omitempty"`
 }
 
 type ContactName struct {
@@ -77,7 +77,7 @@ type RemoteDelete struct {
 
 type Sticker struct {
 	PackId    string `json:"packId,omitempty"`
-	StickerId int    `json:"stickerId,omitempty"`
+	StickerId int64  `json:"stickerId,omitempty"`
 }
 
 type QuotedAttachment struct {
@@ -91,9 +91,10 @@ type Attachment struct {
 	Filename        string `json:"filename,omitempty"`
 	Id              string `json:"id,omitempty"`
 	Size            int64  `json:"size,omitempty"`
-	Width           int    `json:"width,omitempty"`
-	Height          int    `json:"height,omitempty"`
+	Width           int64  `json:"width,omitempty"`
+	Height          int64  `json:"height,omitempty"`
 	Caption         string `json:"caption,omitempty"`
+	IsVoiceNote     bool   `json:"isVoiceNote,omitempty"`
 	UploadTimestamp int64  `json:"uploadTimestamp,omitempty"`
 }
 
@@ -109,8 +110,8 @@ type Mention struct {
 	Name   string `json:"name,omitempty"`
 	Number string `json:"number,omitempty"`
 	Uuid   string `json:"uuid,omitempty"`
-	Start  int    `json:"start,omitempty"`
-	Length int    `json:"length,omitempty"`
+	Start  int64  `json:"start,omitempty"`
+	Length int64  `json:"length,omitempty"`
 }
 
 type Quote struct {
@@ -138,7 +139,7 @@ type Reaction struct {
 type DataMessage struct {
 	Timestamp        int64           `json:"timestamp,omitempty"`
 	Message          string          `json:"message,omitempty"`
-	ExpiresInSeconds int             `json:"expiresInSeconds,omitempty"`
+	ExpiresInSeconds int64           `json:"expiresInSeconds,omitempty"`
 	ViewOnce         bool            `json:"viewOnce,omitempty"`
 	Reaction         Reaction        `json:"reaction,omitempty"`
 	Quote            Quote           `json:"quote,omitempty"`
@@ -152,6 +153,18 @@ type DataMessage struct {
 	TextStyles       []TextStyle     `json:"textStyles,omitempty"`
 	GroupInfo        GroupInfo       `json:"groupInfo,omitempty"`
 	StoryContext     StoryContext    `json:"storyContext,omitempty"`
+
+	AdminDelete        AdminDelete     `json:"adminDelete,omitempty"`
+	GroupCallUpdate    GroupCallUpdate `json:"groupCallUpdate,omitempty"`
+	HasProfileKey      bool            `json:"hasProfileKey,omitempty"`
+	IsEndSession       bool            `json:"isEndSession,omitempty"`
+	IsExpirationUpdate bool            `json:"isExpirationUpdate,omitempty"`
+	IsProfileKeyUpdate bool            `json:"isProfileKeyUpdate,omitempty"`
+	PinMessage         PinMessage      `json:"pinMessage,omitempty"`
+	PollCreate         PollCreate      `json:"pollCreate,omitempty"`
+	PollTerminate      PollTerminate   `json:"pollTerminate,omitempty"`
+	PollVote           PollVote        `json:"pollVote,omitempty"`
+	UnpinMessage       UnpinMessage    `json:"unpinMessage,omitempty"`
 }
 
 type EditMessage struct {
@@ -174,7 +187,7 @@ type StoryMessage struct {
 			EndColor   string    `json:"endColor,omitempty"`
 			Colors     []string  `json:"colors,omitempty"`
 			Positions  []float64 `json:"positions,omitempty"`
-			Angle      int       `json:"angle,omitempty"`
+			Angle      int64     `json:"angle,omitempty"`
 		} `json:"backgroundGradient,omitempty"`
 		BackgroundColor string `json:"backgroundColor,omitempty"`
 	} `json:"textAttachment,omitempty"`
@@ -191,6 +204,8 @@ type SyncDataMessage struct {
 }
 
 type SyncStoryMessage struct {
+	// The spec flattens the story fields; dataMessage is kept for existing consumers.
+	StoryMessage
 	DestinationNumber string       `json:"destinationNumber,omitempty"`
 	DestinationUuid   string       `json:"destinationUuid,omitempty"`
 	DataMessage       StoryMessage `json:"dataMessage,omitempty"`
@@ -210,8 +225,8 @@ type SyncMessage struct {
 	BlockedNumbers   []string          `json:"blockedNumbers,omitempty"`
 	BlockedGroupIds  []string          `json:"blockedGroupIds,omitempty"`
 	ReadMessages     []SyncReadMessage `json:"readMessages,omitempty"`
-	// 0 = CONTACTS_SYNC, 1 = GROUPS_SYNC, 3 = REQUEST_SYNC
-	Type int `json:"type,omitempty"`
+	// CONTACTS_SYNC, GROUPS_SYNC or REQUEST_SYNC
+	Type string `json:"type,omitempty"`
 }
 
 type CallMessage struct {
@@ -230,7 +245,7 @@ type CallMessage struct {
 	HangupMessage struct {
 		Id       int64  `json:"id,omitempty"`
 		Type     string `json:"type,omitempty"`
-		DeviceId int    `json:"DeviceId,omitempty"`
+		DeviceId int64  `json:"deviceId,omitempty"`
 	} `json:"hangupMessage,omitempty"`
 	IceUpdateMessages []struct {
 		Id     int64  `json:"id,omitempty"`
@@ -258,7 +273,7 @@ type MessageEnvelope struct {
 	SourceNumber             string         `json:"sourceNumber,omitempty"`
 	SourceUuid               string         `json:"sourceUuid,omitempty"`
 	SourceName               string         `json:"sourceName,omitempty"`
-	SourceDevice             int            `json:"sourceDevice,omitempty"`
+	SourceDevice             int64          `json:"sourceDevice,omitempty"`
 	Timestamp                int64          `json:"timestamp,omitempty"`
 	ServerReceivedTimestamp  int64          `json:"serverReceivedTimestamp,omitempty"`
 	ServerDeliveredTimestamp int64          `json:"serverDeliveredTimestamp,omitempty"`
@@ -268,5 +283,115 @@ type MessageEnvelope struct {
 	SyncMessage              SyncMessage    `json:"syncMessage,omitempty"`
 	CallMessage              CallMessage    `json:"callMessage,omitempty"`
 	ReceiptMessage           ReceiptMessage `json:"receiptMessage,omitempty"`
-	TypingMessag             TypingMessage  `json:"typingMessage,omitempty"`
+	TypingMessage            TypingMessage  `json:"typingMessage,omitempty"`
+}
+
+type AdminDelete struct {
+	// Deprecated: Use TargetAuthorNumber and TargetAuthorUuid instead
+	TargetAuthor        string `json:"targetAuthor,omitempty"`
+	TargetAuthorNumber  string `json:"targetAuthorNumber,omitempty"`
+	TargetAuthorUuid    string `json:"targetAuthorUuid,omitempty"`
+	TargetSentTimestamp int64  `json:"targetSentTimestamp,omitempty"`
+}
+
+type AttachmentData struct {
+	Data string `json:"data,omitempty"`
+}
+
+type GroupCallUpdate struct {
+	EraId string `json:"eraId,omitempty"`
+}
+
+type PinMessage struct {
+	PinDurationSeconds int64 `json:"pinDurationSeconds,omitempty"`
+	// Deprecated: Use TargetAuthorNumber and TargetAuthorUuid instead
+	TargetAuthor        string `json:"targetAuthor,omitempty"`
+	TargetAuthorNumber  string `json:"targetAuthorNumber,omitempty"`
+	TargetAuthorUuid    string `json:"targetAuthorUuid,omitempty"`
+	TargetSentTimestamp int64  `json:"targetSentTimestamp,omitempty"`
+}
+
+type UnpinMessage struct {
+	// Deprecated: Use TargetAuthorNumber and TargetAuthorUuid instead
+	TargetAuthor        string `json:"targetAuthor,omitempty"`
+	TargetAuthorNumber  string `json:"targetAuthorNumber,omitempty"`
+	TargetAuthorUuid    string `json:"targetAuthorUuid,omitempty"`
+	TargetSentTimestamp int64  `json:"targetSentTimestamp,omitempty"`
+}
+
+type PollCreate struct {
+	AllowMultiple bool     `json:"allowMultiple,omitempty"`
+	Options       []string `json:"options,omitempty"`
+	Question      string   `json:"question,omitempty"`
+}
+
+type PollTerminate struct {
+	TargetSentTimestamp int64 `json:"targetSentTimestamp,omitempty"`
+}
+
+type PollVote struct {
+	Author              string  `json:"author,omitempty"`
+	AuthorNumber        string  `json:"authorNumber,omitempty"`
+	AuthorUuid          string  `json:"authorUuid,omitempty"`
+	OptionIndexes       []int64 `json:"optionIndexes,omitempty"`
+	TargetSentTimestamp int64   `json:"targetSentTimestamp,omitempty"`
+	VoteCount           int64   `json:"voteCount,omitempty"`
+}
+
+type Error struct {
+	Message string `json:"message,omitempty"`
+	Type    string `json:"type,omitempty"`
+}
+
+type RecipientAddress struct {
+	Number   string `json:"number,omitempty"`
+	Username string `json:"username,omitempty"`
+	Uuid     string `json:"uuid,omitempty"`
+}
+
+type SendMessageResult struct {
+	GroupId           string           `json:"groupId,omitempty"`
+	RecipientAddress  RecipientAddress `json:"recipientAddress,omitempty"`
+	RetryAfterSeconds int64            `json:"retryAfterSeconds,omitempty"`
+	Token             string           `json:"token,omitempty"`
+	Type              string           `json:"type,omitempty"`
+}
+
+type Internal struct {
+	Capabilities              []string `json:"capabilities,omitempty"`
+	DiscoverableByPhonenumber bool     `json:"discoverableByPhonenumber,omitempty"`
+	SharesPhoneNumber         bool     `json:"sharesPhoneNumber,omitempty"`
+	UnidentifiedAccessMode    string   `json:"unidentifiedAccessMode,omitempty"`
+}
+
+type Profile struct {
+	About               string `json:"about,omitempty"`
+	AboutEmoji          string `json:"aboutEmoji,omitempty"`
+	FamilyName          string `json:"familyName,omitempty"`
+	GivenName           string `json:"givenName,omitempty"`
+	HasAvatar           bool   `json:"hasAvatar,omitempty"`
+	LastUpdateTimestamp int64  `json:"lastUpdateTimestamp,omitempty"`
+	MobileCoinAddress   string `json:"mobileCoinAddress,omitempty"`
+}
+
+type Contact struct {
+	Color                 string   `json:"color,omitempty"`
+	FamilyName            string   `json:"familyName,omitempty"`
+	GivenName             string   `json:"givenName,omitempty"`
+	Internal              Internal `json:"internal,omitempty"`
+	IsArchived            bool     `json:"isArchived,omitempty"`
+	IsBlocked             bool     `json:"isBlocked,omitempty"`
+	IsHidden              bool     `json:"isHidden,omitempty"`
+	MessageExpirationTime int64    `json:"messageExpirationTime,omitempty"`
+	Name                  string   `json:"name,omitempty"`
+	NickFamilyName        string   `json:"nickFamilyName,omitempty"`
+	NickGivenName         string   `json:"nickGivenName,omitempty"`
+	NickName              string   `json:"nickName,omitempty"`
+	Note                  string   `json:"note,omitempty"`
+	Number                string   `json:"number,omitempty"`
+	Profile               Profile  `json:"profile,omitempty"`
+	ProfileSharing        bool     `json:"profileSharing,omitempty"`
+	Unregistered          bool     `json:"unregistered,omitempty"`
+	Username              string   `json:"username,omitempty"`
+	Uuid                  string   `json:"uuid,omitempty"`
 }

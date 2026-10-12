@@ -8,6 +8,7 @@
 ### Governor log
 - 2026-10-12 — clean (session start, HEAD d65a5fb)
 - 2026-10-12 — T2 manifest clean; brief changed mid-run (alias dropped), worker complied.
+- 2026-10-12 — T7 manifest accepted; signaltypes per-field claims unverified (structure-only check by orchestrator).
 
 ## Tasks
 - [x] T1 — Generate ARCHITECTURE.md + CODE-BLOCKS-REFERENCE.md (Lane 0; survey via haiku-scout, declarations verified by grep). Committed 26dc7d2.
@@ -16,3 +17,5 @@
 - [x] T4 — README signatures fixed (Post/DeleteReaction TargetAuthor, PostContact, PostCreateGroup); api.go errorResposne → errorResponse. Build+vet rc=0 verified by Governor.
 - [x] T5 — PostGroupMembers/DeleteGroupMembers now send data (were nil). Diff + build/vet rc=0 verified by Governor; not tested against a live server.
 - [x] T6 — README: return values on all 26 method bullets (reported count); 7 spot-checked vs code by Governor. Pushed.
+- [x] T7 — Code aligned with signal-cli-rest-api 0.101 swagger (orchestrator, 4 coders, ~4 min reported). Governor verified: build/vet/gofmt rc=0, tag 0.101, contacts PUT, sync POST, /v1/search/{number}, health 204, config path, api.go read in full. signaltypes field list = reported only.
+- [ ] T8 — Expose send-error challenge_tokens via exported APIError (Lane 1, sonnet-coder, 2026-10-12, budget 6 min).
