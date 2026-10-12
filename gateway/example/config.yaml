@@ -1,0 +1,16 @@
+# Gateway config for the compose example. Every other key takes its default
+# (see ../config.example.yaml).
+installation_name: Signal Gateway (example)
+listen: ":8080"
+db: /data/gateway.db
+signal_api_url: http://signal-api:8080
+
+jwt:
+  private_key_path: /data/jwt_private.pem
+  public_key_path: /data/jwt_public.pem
+
+# Used only on an empty database. Blank: a password is generated and logged once.
+# SIGNALGW_ADMIN_PASSWORD (see .env.example) overrides it.
+first_admin:
+  username: admin
+  password: ""

@@ -1,0 +1,68 @@
+# Run from this directory: docker compose up -d
+# Fake data instead of a real Signal account: docker compose --profile fake up -d
+name: signal-gateway-example
+
+services:
+  signal-api:
+    image: bbernhard/signal-cli-rest-api:0.101
+    environment:
+      MODE: json-rpc
+    volumes:
+      - signal-data:/home/.local/share/signal-cli
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ../..
+      dockerfile: gateway/Dockerfile
+    image: signal-gateway:example
+    depends_on:
+      - signal-api
+    environment:
+      SIGNALGW_ADMIN_PASSWORD: ${SIGNALGW_ADMIN_PASSWORD:-}
+    volumes:
+      - ./config.yaml:/etc/gateway/config.yaml:ro
+      - gateway-data:/data
+    ports:
+      - "127.0.0.1:8090:8080"
+    restart: unless-stopped
+
+  # --- profile "fake": the UI against sample data, no phone number needed ---
+  fakesignal:
+    profiles: [fake]
+    image: signal-gateway:example
+    entrypoint: ["/usr/local/bin/fakesignal"]
+    command: ["-listen", "0.0.0.0:8081", "-seed", "design"]
+    restart: unless-stopped
+
+  # One-shot: writes sample labels into the fake gateway's empty database.
+  fake-seed:
+    profiles: [fake]
+    image: signal-gateway:example
+    entrypoint: ["/usr/local/bin/devseed"]
+    command: ["-db", "/data/gateway.db"]
+    volumes:
+      - gateway-fake-data:/data
+
+  # Published on 8091 so it can run beside the real gateway.
+  gateway-fake:
+    profiles: [fake]
+    image: signal-gateway:example
+    depends_on:
+      fakesignal:
+        condition: service_started
+      fake-seed:
+        condition: service_completed_successfully
+    environment:
+      SIGNALGW_ADMIN_PASSWORD: ${SIGNALGW_ADMIN_PASSWORD:-}
+    volumes:
+      - ./config.fake.yaml:/etc/gateway/config.yaml:ro
+      - gateway-fake-data:/data
+    ports:
+      - "127.0.0.1:8091:8080"
+    restart: unless-stopped
+
+volumes:
+  signal-data:
+  gateway-data:
+  gateway-fake-data:

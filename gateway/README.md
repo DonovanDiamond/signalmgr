@@ -44,6 +44,10 @@ With no `config.yaml` every setting takes its default: listen on `:8080`, databa
 
 `make build-linux` and `make build-windows` produce static binaries in `dist/` (`CGO_ENABLED=0`). The UI is embedded when the binary is compiled, so run `make web` first (the build targets do).
 
+### Docker
+
+`example/` holds a Docker Compose setup that runs the gateway with a real signal-cli-rest-api, or with fake data (`--profile fake`). See [example/README.md](example/README.md). The image builds from the repository root: `docker build -f gateway/Dockerfile .`.
+
 ### Previewing the UI with sample data
 
 ```

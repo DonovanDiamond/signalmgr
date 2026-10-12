@@ -1,0 +1,12 @@
+# Used because the build context is the repo root and the Dockerfile is gateway/Dockerfile.
+.git
+.claude
+**/node_modules
+**/.svelte-kit
+gateway/web/build
+gateway/dist
+gateway/data
+gateway/config.yaml
+gateway/example
+**/.env
+*.md

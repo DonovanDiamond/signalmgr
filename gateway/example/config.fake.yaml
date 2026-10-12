@@ -1,0 +1,13 @@
+# Gateway config for the compose "fake" profile: same as config.yaml, pointed at fakesignal.
+installation_name: Signal Gateway (fake data)
+listen: ":8080"
+db: /data/gateway.db
+signal_api_url: http://fakesignal:8081
+
+jwt:
+  private_key_path: /data/jwt_private.pem
+  public_key_path: /data/jwt_public.pem
+
+first_admin:
+  username: admin
+  password: ""
