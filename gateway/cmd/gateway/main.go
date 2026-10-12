@@ -46,8 +46,12 @@ func main() {
 	}
 	signalSvc := sig.New(x, cfg.SignalAPIURL, log)
 
-	webFS, webErr := web.FS()
-	app := api.New(authSvc, signalSvc, cfg.InstallationName, webFS, webErr, log)
+	// On error FS still returns a page explaining that the UI is not built.
+	webFS, err := web.FS()
+	if err != nil {
+		log.Warn().Err(err).Msg("serving the placeholder page instead of the UI")
+	}
+	app := api.New(authSvc, signalSvc, cfg.InstallationName, cfg.TrustedProxies, webFS, log)
 
 	go func() {
 		if err := app.Listen(cfg.Listen, fiber.ListenConfig{DisableStartupMessage: true}); err != nil {
@@ -68,17 +72,10 @@ func main() {
 	}
 }
 
-// loadConfig treats a missing file as "use the defaults", which config.Load
-// only offers for an existing (possibly empty) file.
+// loadConfig treats a missing file as "use the defaults".
 func loadConfig(path string) (*config.Config, error) {
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		empty, err := os.CreateTemp("", "gateway-empty-*.yaml")
-		if err != nil {
-			return nil, fmt.Errorf("preparing default config: %w", err)
-		}
-		defer os.Remove(empty.Name())
-		empty.Close()
-		return config.Load(empty.Name())
+		return config.Defaults().Resolve()
 	}
 	return config.Load(path)
 }

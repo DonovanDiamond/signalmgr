@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"time"
@@ -33,18 +34,24 @@ type Config struct {
 	Timezone         string `yaml:"timezone"`
 	DB               string `yaml:"db"`
 	SignalAPIURL     string `yaml:"signal_api_url"`
+	// TrustedProxies are CIDRs of reverse proxies whose X-Forwarded-For is
+	// believed, so rate limiting sees the real client. None by default: the
+	// header is then ignored, because any client could forge it.
+	TrustedProxies []string `yaml:"trusted_proxies"`
 
 	JWT        JWTConfig        `yaml:"jwt"`
 	AD         ADConfig         `yaml:"ad"`
 	FirstAdmin FirstAdminConfig `yaml:"first_admin"`
 }
 
-// JWTConfig holds the signing key pair paths and the session lifetime.
+// JWTConfig holds the signing key pair paths and the token lifetimes. The
+// access token is short-lived; the refresh token renews it until RefreshTTL.
 // The pair is generated at first run when both files are absent.
 type JWTConfig struct {
 	PrivateKeyPath string        `yaml:"private_key_path"`
 	PublicKeyPath  string        `yaml:"public_key_path"`
-	TokenTTL       time.Duration `yaml:"token_ttl"`
+	AccessTTL      time.Duration `yaml:"access_ttl"`
+	RefreshTTL     time.Duration `yaml:"refresh_ttl"`
 }
 
 // ADConfig is optional; nothing else in it is read unless Enabled.
@@ -57,6 +64,7 @@ type ADConfig struct {
 	Security     string            `yaml:"security"` // none, tls or starttls
 	BindDN       string            `yaml:"bind_dn"`
 	BindPassword string            `yaml:"bind_password"`
+	Timeout      time.Duration     `yaml:"timeout"`   // longest a sign-in waits for the directory
 	GroupMap     map[string]string `yaml:"group_map"` // AD group -> admin|user
 }
 
@@ -67,7 +75,8 @@ type FirstAdminConfig struct {
 	Password string `yaml:"password"`
 }
 
-func defaults() Config {
+// Defaults is the configuration used when no file exists.
+func Defaults() Config {
 	return Config{
 		InstallationName: "Signal Gateway",
 		Listen:           ":8080",
@@ -77,8 +86,10 @@ func defaults() Config {
 		JWT: JWTConfig{
 			PrivateKeyPath: "data/jwt_private.pem",
 			PublicKeyPath:  "data/jwt_public.pem",
-			TokenTTL:       8 * time.Hour,
+			AccessTTL:      15 * time.Minute,
+			RefreshTTL:     8 * time.Hour,
 		},
+		AD:         ADConfig{Timeout: 10 * time.Second},
 		FirstAdmin: FirstAdminConfig{Username: "admin"},
 	}
 }
@@ -92,24 +103,29 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("config: reading %q: %w", path, err)
 	}
 
-	cfg := defaults()
+	cfg := Defaults()
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	if err := dec.Decode(&cfg); err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("config: parsing %q as YAML: %w", path, err)
 	}
 
+	return cfg.Resolve()
+}
+
+// Resolve applies the environment overrides to c and validates it. Load does
+// this for a file; a caller using Defaults() must do it too.
+func (c Config) Resolve() (*Config, error) {
 	if v := os.Getenv(EnvAdminUsername); v != "" {
-		cfg.FirstAdmin.Username = v
+		c.FirstAdmin.Username = v
 	}
 	if v := os.Getenv(EnvAdminPassword); v != "" {
-		cfg.FirstAdmin.Password = v
+		c.FirstAdmin.Password = v
 	}
-
-	if err := cfg.validate(); err != nil {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
-	return &cfg, nil
+	return &c, nil
 }
 
 // Location is the configured timezone; validate guarantees it loads.
@@ -139,8 +155,16 @@ func (c *Config) validate() error {
 	if c.JWT.PrivateKeyPath == "" || c.JWT.PublicKeyPath == "" {
 		return fmt.Errorf("config: jwt.private_key_path and jwt.public_key_path must not be empty, expected file paths")
 	}
-	if c.JWT.TokenTTL <= 0 {
-		return fmt.Errorf("config: jwt.token_ttl must be greater than 0, got %s", c.JWT.TokenTTL)
+	if c.JWT.AccessTTL <= 0 {
+		return fmt.Errorf("config: jwt.access_ttl must be greater than 0, got %s", c.JWT.AccessTTL)
+	}
+	if c.JWT.RefreshTTL <= c.JWT.AccessTTL {
+		return fmt.Errorf("config: jwt.refresh_ttl (%s) must be greater than jwt.access_ttl (%s)", c.JWT.RefreshTTL, c.JWT.AccessTTL)
+	}
+	for _, cidr := range c.TrustedProxies {
+		if _, _, err := net.ParseCIDR(cidr); err != nil {
+			return fmt.Errorf("config: trusted_proxies entry %q is not a CIDR such as \"10.0.0.0/8\" or \"192.0.2.1/32\"", cidr)
+		}
 	}
 	if c.FirstAdmin.Username == "" {
 		return fmt.Errorf("config: first_admin.username must not be empty")
@@ -160,6 +184,9 @@ func (a *ADConfig) validate() error {
 	}
 	if a.Port < 1 || a.Port > 65535 {
 		return fmt.Errorf("config: ad.port must be between 1 and 65535, got %d", a.Port)
+	}
+	if a.Timeout <= 0 {
+		return fmt.Errorf("config: ad.timeout must be greater than 0, got %s", a.Timeout)
 	}
 	if a.BaseDN == "" {
 		return fmt.Errorf("config: ad.base_dn must not be empty when ad.enabled is true")

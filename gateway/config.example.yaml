@@ -7,11 +7,17 @@ db: data/gateway.db
 # Where signal-cli-rest-api listens. TLS is left to a reverse proxy in front of the gateway.
 signal_api_url: http://127.0.0.1:8081
 
+# CIDRs of reverse proxies whose X-Forwarded-For is believed, so the sign-in rate limit
+# counts the real client. Leave empty when clients connect directly.
+trusted_proxies: []
+
 jwt:
   # Both files are generated on first run when neither exists.
   private_key_path: data/jwt_private.pem
   public_key_path: data/jwt_public.pem
-  token_ttl: 8h
+  # The access token is short; the refresh token renews it until refresh_ttl after sign-in.
+  access_ttl: 15m
+  refresh_ttl: 8h
 
 # Used only on an empty database. With no password, one is generated and logged once at WARN.
 # SIGNALGW_ADMIN_USERNAME and SIGNALGW_ADMIN_PASSWORD override these (minimum 12 characters).
@@ -22,6 +28,7 @@ first_admin:
 # Active Directory is off unless enabled. Someone in none of the mapped groups cannot sign in.
 ad:
   enabled: false
+  timeout: 10s             # longest a sign-in waits for the directory
   # server: dc01.example.org
   # port: 636
   # base_dn: DC=example,DC=org

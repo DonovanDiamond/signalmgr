@@ -170,9 +170,9 @@ func TestUsersAndSessions(t *testing.T) {
 
 	u, _ := GetUserByUsername(ctx, x, "admin")
 	for _, s := range []Session{
-		{"live", u.ID, now.Add(time.Hour)},
-		{"expired", u.ID, now.Add(-time.Hour)},
-		{"revoked", u.ID, now.Add(time.Hour)},
+		{ID: "live", UserID: u.ID, ExpiresAt: now.Add(time.Hour), RefreshHash: "h1", RefreshExpiresAt: now.Add(time.Hour)},
+		{ID: "expired", UserID: u.ID, ExpiresAt: now.Add(-time.Hour), RefreshHash: "h2", RefreshExpiresAt: now.Add(-time.Hour)},
+		{ID: "revoked", UserID: u.ID, ExpiresAt: now.Add(time.Hour), RefreshHash: "h3", RefreshExpiresAt: now.Add(time.Hour)},
 	} {
 		if err := InsertSession(ctx, x, s); err != nil {
 			t.Fatal(err)
@@ -194,5 +194,69 @@ func TestUsersAndSessions(t *testing.T) {
 	x.Get(&left, `SELECT COUNT(*) FROM sessions`)
 	if left != 2 {
 		t.Fatalf("sessions left = %d, want 2", left)
+	}
+}
+
+func TestRefreshClaimAndPruning(t *testing.T) {
+	ctx := context.Background()
+	x := open(t)
+	now := time.Now().UTC()
+	if err := InsertLocalUser(ctx, x, "ann", "Ann", "user", "hash"); err != nil {
+		t.Fatal(err)
+	}
+	u, _ := GetUserByUsername(ctx, x, "ann")
+	for _, s := range []Session{
+		{ID: "live", UserID: u.ID, ExpiresAt: now.Add(-time.Minute), RefreshHash: "h-live", RefreshExpiresAt: now.Add(time.Hour)},
+		{ID: "dead", UserID: u.ID, ExpiresAt: now.Add(-time.Hour), RefreshHash: "h-dead", RefreshExpiresAt: now.Add(-time.Minute)},
+	} {
+		if err := InsertSession(ctx, x, s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Pruning must keep a session whose access token expired but whose refresh token is alive.
+	if err := DeleteExpiredSessions(ctx, x, now); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		hash string
+		want error
+	}{
+		{"h-dead", ErrNotFound}, // pruned, and expired anyway
+		{"unknown", ErrNotFound},
+		{"h-live", nil},
+		{"h-live", ErrNotFound}, // spent
+	}
+	for _, tc := range tests {
+		id, exp, err := ClaimRefresh(ctx, x, tc.hash, now)
+		if !errors.Is(err, tc.want) || (err == nil && (id != u.ID || !exp.Equal(now.Add(time.Hour)))) {
+			t.Errorf("claim %q = %d, %v; want %v", tc.hash, id, err, tc.want)
+		}
+	}
+}
+
+func TestUserAdministration(t *testing.T) {
+	ctx := context.Background()
+	x := open(t)
+	if err := InsertLocalUser(ctx, x, "ann", "Ann", "user", "hash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetUserDisabled(ctx, x, "ann", true); err != nil {
+		t.Fatal(err)
+	}
+	if u, _ := GetUserByUsername(ctx, x, "ann"); !u.Disabled {
+		t.Error("not disabled")
+	}
+	if err := SetUserDisabled(ctx, x, "ghost", true); !errors.Is(err, ErrNotFound) {
+		t.Errorf("unknown user: %v", err)
+	}
+	if _, err := UpsertADUser(ctx, x, "jo", "Jo", "user"); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetUserPassword(ctx, x, "jo", "h"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("AD user password: %v", err)
+	}
+	us, err := ListUsers(ctx, x)
+	if err != nil || len(us) != 2 || us[0].Username != "ann" {
+		t.Errorf("list = %+v, %v", us, err)
 	}
 }

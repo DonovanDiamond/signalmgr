@@ -15,7 +15,7 @@
 		numbers: SignalNumber[];
 		load: () => Promise<SignalNumber[]>;
 		onclose: () => void;
-		ondone: () => void;
+		ondone: (number: string) => void;
 	} = $props();
 
 	let deviceName = $state('');
@@ -25,12 +25,10 @@
 	let busy = $state(false);
 	let timer: ReturnType<typeof setInterval> | undefined;
 
-	// Compared by value at the moment the QR is issued, so a device that
-	// existed before is never mistaken for the new one.
-	const snapshot = (list: SignalNumber[]) => list.reduce((n, x) => n + 1 + x.devices.length, 0);
-	let baseline = 0;
+	// Fixed when the QR is issued, so a number that existed before is never mistaken for the new one.
+	let known = new Set<string>();
 
-	const problem = $derived(deviceName.trim() ? '' : 'Give the new device a name.');
+	const problem = $derived(deviceName.trim() ? '' : 'Give this gateway a name.');
 
 	function stop() {
 		if (timer) clearInterval(timer);
@@ -51,17 +49,17 @@
 		});
 		busy = false;
 		if (!ok) return;
-		baseline = snapshot(numbers);
+		known = new Set(numbers.map((n) => n.number));
 		waiting = true;
 		timer = setInterval(poll, 3000);
 	}
 
 	async function poll() {
 		try {
-			const list = await load();
-			if (snapshot(list) > baseline) {
+			const added = (await load()).find((n) => !known.has(n.number));
+			if (added) {
 				stop();
-				ondone();
+				ondone(added.number);
 			}
 		} catch {
 			// a transient failure must not end the wait; the next tick retries
@@ -82,12 +80,13 @@
 	});
 </script>
 
-<Modal title="Link a device" testid="dialog-link-device" onclose={() => { stop(); onclose(); }}>
+<Modal title="Link this gateway to a phone" testid="dialog-link-gateway" onclose={() => { stop(); onclose(); }}>
 	{#if !waiting}
 		<form onsubmit={start} class="grid gap-4">
 			<div>
-				<label class="field-label" for="link-name">Device name</label>
-				<input id="link-name" class="input w-full" placeholder="Front desk PC" bind:value={deviceName} required />
+				<label class="field-label" for="link-name">Name for this gateway</label>
+				<input id="link-name" class="input w-full" placeholder="Front desk gateway" bind:value={deviceName} required />
+				<p class="field-hint">Shown in Signal under Linked devices on the phone.</p>
 			</div>
 			<div class="flex justify-end gap-2">
 				<button type="button" class="xbtn" onclick={onclose}>Cancel</button>
@@ -104,7 +103,7 @@
 			<button type="button" class="xbtn" data-testid="copy-link" onclick={copy}>Copy link</button>
 		</div>
 		<div class="mt-4 flex justify-end">
-			<button type="button" class="xbtn" onclick={onclose}>Close</button>
+			<button type="button" class="xbtn" onclick={() => { stop(); onclose(); }}>Close</button>
 		</div>
 	{/if}
 </Modal>

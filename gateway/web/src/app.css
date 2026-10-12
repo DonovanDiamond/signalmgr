@@ -322,3 +322,14 @@ summary:focus-visible {
 		grid-column: 1 / -1;
 	}
 }
+
+/* One large, letter-spaced field for the 6-digit code, echoing the row number's emphasis. */
+.code-input {
+	font-size: 28px;
+	font-weight: 700;
+	letter-spacing: 0.4em;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+	padding-block: 12px;
+	height: auto;
+}

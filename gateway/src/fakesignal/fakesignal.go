@@ -23,7 +23,7 @@ const (
 	RateLimitedNumber = "+15550000429"
 
 	captchaPrefix = "signalcaptcha://"
-	linkDelay     = 5 * time.Second
+	linkURIPrefix = "sgnl://linkdevice?"
 )
 
 type device struct {
@@ -35,6 +35,11 @@ type device struct {
 
 // Server is an http.Handler holding all fake state.
 type Server struct {
+	// LinkAfter is how long after a QR/link-URI request a new registered
+	// account appears, simulating a phone scanning the gateway's link. Zero
+	// means never. Set it before serving.
+	LinkAfter time.Duration
+
 	mux *http.ServeMux
 
 	mu       sync.Mutex
@@ -43,6 +48,7 @@ type Server struct {
 	pending  map[string]bool // register called, not yet verified
 	pins     map[string]bool
 	linkWait bool // a link timer is already running
+	linked   int  // accounts created by simulated links
 }
 
 // New returns a fake server; seed adds a few registered numbers with devices.
@@ -75,6 +81,7 @@ func New(seed bool) *Server {
 	s.mux.HandleFunc("POST /v1/register/{number}/verify/{token}", s.verify)
 	s.mux.HandleFunc("POST /v1/unregister/{number}", s.unregister)
 	s.mux.HandleFunc("GET /v1/devices/{number}", s.listDevices)
+	s.mux.HandleFunc("POST /v1/devices/{number}", s.linkDevice)
 	s.mux.HandleFunc("DELETE /v1/devices/{number}/{id}", s.deleteDevice)
 	s.mux.HandleFunc("GET /v1/qrcodelink", s.qrcode)
 	s.mux.HandleFunc("GET /v1/qrcodelink/raw", s.linkURI)
@@ -207,30 +214,61 @@ func (s *Server) deleteDevice(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// scheduleLink simulates the user scanning the QR code: a device appears on
-// the first registered account a few seconds after the link was requested.
+// SeedDesign adds the numbers the UI design mockups show. Call before serving.
+func (s *Server) SeedDesign() {
+	now := time.Now()
+	ms := func(ago time.Duration) int64 { return now.Add(-ago).UnixMilli() }
+	day := 24 * time.Hour
+	s.add("+27825550143",
+		device{ID: 1, Name: "Gateway (this server)", CreationTimestamp: ms(300 * day), LastSeenTimestamp: ms(time.Minute)},
+		device{ID: 2, Name: "Front desk PC", CreationTimestamp: ms(90 * day), LastSeenTimestamp: ms(3 * time.Minute)},
+		device{ID: 3, Name: "Pastor's tablet", CreationTimestamp: ms(40 * day), LastSeenTimestamp: ms(2 * day)})
+	s.add("+27715550198",
+		device{ID: 1, Name: "Gateway (this server)", CreationTimestamp: ms(150 * day), LastSeenTimestamp: ms(time.Minute)})
+}
+
+func (s *Server) linkDevice(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		URI string `json:"uri"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || !strings.HasPrefix(b.URI, linkURIPrefix) {
+		writeErr(w, http.StatusBadRequest, "uri must start with "+linkURIPrefix)
+		return
+	}
+	number := r.PathValue("number")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	devs, ok := s.devices[number]
+	if !ok {
+		writeErr(w, http.StatusNotFound, "User is not registered.")
+		return
+	}
+	var next int64 = 1
+	for _, d := range devs {
+		next = max(next, d.ID+1)
+	}
+	now := time.Now().UnixMilli()
+	s.devices[number] = append(devs, device{ID: next, Name: "New device", CreationTimestamp: now, LastSeenTimestamp: now})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// scheduleLink simulates a phone scanning the gateway's link: after LinkAfter
+// a new registered account appears.
 func (s *Server) scheduleLink() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.linkWait {
+	if s.LinkAfter <= 0 || s.linkWait {
 		return
 	}
 	s.linkWait = true
-	time.AfterFunc(linkDelay, func() {
+	time.AfterFunc(s.LinkAfter, func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.linkWait = false
-		if len(s.order) == 0 {
-			return
-		}
-		number := s.order[0]
-		var next int64 = 1
-		for _, d := range s.devices[number] {
-			next = max(next, d.ID+1)
-		}
+		s.linked++
 		now := time.Now().UnixMilli()
-		s.devices[number] = append(s.devices[number],
-			device{ID: next, Name: "Linked device", CreationTimestamp: now, LastSeenTimestamp: now})
+		s.add(fmt.Sprintf("+2760555%04d", s.linked),
+			device{ID: 1, Name: "Gateway (this server)", CreationTimestamp: now, LastSeenTimestamp: now})
 	})
 }
 

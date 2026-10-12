@@ -12,7 +12,7 @@
 		item: SignalNumber;
 		expanded: boolean;
 		ontoggle: () => void;
-		onaction: (kind: 'register' | 'verify' | 'link' | 'pin' | 'unregister' | 'rate-limit' | 'remove-device', device?: Device) => void;
+		onaction: (kind: 'register' | 'verify' | 'add-device' | 'rename' | 'pin' | 'unregister' | 'rate-limit' | 'remove-device', device?: Device) => void;
 	} = $props();
 
 	const stateInfo = $derived(
@@ -34,7 +34,12 @@
 	<div class="row">
 		<div>
 			<div class="row-num" style:color={item.state === 'not_registered' ? 'var(--muted)' : undefined}>{formatNumber(item.number)}</div>
-			{#if item.label}<div class="narrow muted mt-0.5 text-[15px]">{item.label}</div>{/if}
+			<div class="narrow muted mt-0.5 flex items-center gap-3 text-[15px]">
+				{#if item.label}<span data-testid="row-label">{item.label}</span>{/if}
+				{#if session.isAdmin}
+					<button type="button" class="xlink" style="font-weight:500" data-testid="action-rename" onclick={() => onaction('rename')}>{item.label ? 'Rename' : 'Add a label'}</button>
+				{/if}
+			</div>
 		</div>
 		<div class="inline-flex items-center gap-2" data-testid="row-state">
 			<span class="lamp {stateInfo.lamp}" aria-hidden="true"></span>
@@ -69,7 +74,7 @@
 			<div class="sub-head">
 				<span class="narrow text-[15px]">Linked devices</span>
 				{#if session.isAdmin}
-					<button type="button" class="xlink" data-testid="action-link" onclick={() => onaction('link')}>Link a device</button>
+					<button type="button" class="xlink" data-testid="action-add-device" onclick={() => onaction('add-device')}>Add a device to this number</button>
 				{/if}
 			</div>
 			{#each item.devices as d (d.id)}

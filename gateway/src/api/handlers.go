@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/DonovanDiamond/signalmgr/gateway/src/auth"
 	"github.com/DonovanDiamond/signalmgr/gateway/src/signal"
 )
 
@@ -27,11 +28,83 @@ func (s *server) login(c fiber.Ctx) error {
 	if err != nil {
 		return s.fail(c, err)
 	}
-	token, u, err := s.auth.Login(c.Context(), req.Username, req.Password)
+	tokens, u, err := s.auth.Login(c.Context(), req.Username, req.Password)
 	if err != nil {
 		return s.fail(c, err)
 	}
-	return c.JSON(fiber.Map{"token": token, "user": u})
+	return c.JSON(session{tokens, u})
+}
+
+// session is the body of a sign-in or refresh.
+type session struct {
+	auth.Tokens
+	User auth.User `json:"user"`
+}
+
+func (s *server) refresh(c fiber.Ctx) error {
+	req, err := body[struct {
+		RefreshToken string `json:"refreshToken"`
+	}](c)
+	if err != nil {
+		return s.fail(c, err)
+	}
+	tokens, u, err := s.auth.Refresh(c.Context(), req.RefreshToken)
+	if err != nil {
+		return s.fail(c, err)
+	}
+	return c.JSON(session{tokens, u})
+}
+
+func (s *server) changePassword(c fiber.Ctx) error {
+	req, err := body[struct{ Current, New string }](c)
+	if err == nil {
+		err = s.auth.ChangePassword(c.Context(), currentUser(c).Username, req.Current, req.New)
+	}
+	return s.finish(c, err)
+}
+
+func (s *server) users(c fiber.Ctx) error {
+	us, err := s.auth.ListUsers(c.Context())
+	if err != nil {
+		return s.fail(c, err)
+	}
+	return c.JSON(us)
+}
+
+func (s *server) addUser(c fiber.Ctx) error {
+	req, err := body[struct{ Username, Name, Role, Password string }](c)
+	if err == nil {
+		err = s.auth.CreateUser(c.Context(), currentUser(c).Username, req.Username, req.Name, req.Role, req.Password)
+	}
+	return s.finish(c, err)
+}
+
+func (s *server) patchUser(c fiber.Ctx) error {
+	// A pointer so that a body without "disabled" is refused, not read as false.
+	req, err := body[struct{ Disabled *bool }](c)
+	if err == nil && req.Disabled == nil {
+		err = fmt.Errorf("%w: request body must be a JSON object with the documented fields", signal.ErrInvalid)
+	}
+	if err == nil {
+		err = s.auth.SetDisabled(c.Context(), currentUser(c).Username, c.Params("username"), *req.Disabled)
+	}
+	return s.finish(c, err)
+}
+
+func (s *server) resetPassword(c fiber.Ctx) error {
+	req, err := body[struct{ Password string }](c)
+	if err == nil {
+		err = s.auth.SetPassword(c.Context(), currentUser(c).Username, c.Params("username"), req.Password)
+	}
+	return s.finish(c, err)
+}
+
+func (s *server) linkDevice(c fiber.Ctx) error {
+	req, err := body[struct{ URI string }](c)
+	if err == nil {
+		err = s.signal.LinkDevice(c.Context(), currentUser(c).Username, c.Params("number"), req.URI)
+	}
+	return s.finish(c, err)
 }
 
 func (s *server) logout(c fiber.Ctx) error {

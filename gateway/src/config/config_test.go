@@ -39,7 +39,12 @@ func TestLoad(t *testing.T) {
 		{"full AD block", adOK, ""},
 		{"bad timezone", "timezone: Mars/Base", "timezone"},
 		{"bad signal url", "signal_api_url: 127.0.0.1:8081", "signal_api_url"},
-		{"non-positive ttl", "jwt: {token_ttl: 0s}", "token_ttl"},
+		{"non-positive access ttl", "jwt: {access_ttl: 0s}", "access_ttl"},
+		{"refresh not longer than access", "jwt: {access_ttl: 1h, refresh_ttl: 1h}", "refresh_ttl"},
+		{"old token_ttl key refused", "jwt: {token_ttl: 8h}", "token_ttl"},
+		{"bad trusted proxy", "trusted_proxies: [10.0.0.1]", "trusted_proxies"},
+		{"good trusted proxies", "trusted_proxies: [10.0.0.0/8, \"fd00::/8\"]", ""},
+		{"ad non-positive timeout", strings.Replace(adOK, "enabled: true", "enabled: true\n  timeout: 0s", 1), "ad.timeout"},
 		{"short admin password", "first_admin: {password: short}", "at least 12"},
 		{"unknown key refused", "listn: :80", "listn"},
 		{"empty name", "installation_name: ''", "installation_name"},
@@ -76,7 +81,7 @@ func TestLoadDefaultsAndOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Listen != ":8080" || cfg.SignalAPIURL != "http://127.0.0.1:8081" || cfg.JWT.TokenTTL != 8*time.Hour {
+	if cfg.Listen != ":8080" || cfg.SignalAPIURL != "http://127.0.0.1:8081" || cfg.JWT.AccessTTL != 15*time.Minute || cfg.JWT.RefreshTTL != 8*time.Hour || cfg.AD.Timeout != 10*time.Second || len(cfg.TrustedProxies) != 0 {
 		t.Fatalf("defaults wrong: %+v", cfg)
 	}
 	if cfg.FirstAdmin.Username != "root" || cfg.FirstAdmin.Password != "a-long-enough-password" {
@@ -97,5 +102,17 @@ func TestLoadEnvPasswordValidated(t *testing.T) {
 func TestLoadMissingFile(t *testing.T) {
 	if _, err := Load(filepath.Join(t.TempDir(), "nope.yaml")); err == nil {
 		t.Fatal("missing file accepted")
+	}
+}
+
+func TestDefaultsResolve(t *testing.T) {
+	t.Setenv(EnvAdminUsername, "root")
+	t.Setenv(EnvAdminPassword, "")
+	cfg, err := Defaults().Resolve()
+	if err != nil {
+		t.Fatalf("defaults are not valid: %v", err)
+	}
+	if cfg.FirstAdmin.Username != "root" || cfg.JWT.AccessTTL != 15*time.Minute {
+		t.Fatalf("resolved defaults wrong: %+v", cfg)
 	}
 }

@@ -10,11 +10,12 @@ export class ApiError extends Error {
 	}
 }
 
-/** Every call goes through here, so an expired session is handled once: clear it, go to login. */
-async function request(path: string, init: RequestInit = {}): Promise<Response> {
+/** Every call goes through here, so an expired session is handled once: refresh and retry, else clear it and go to login. */
+async function request(path: string, init: RequestInit = {}, retried = false): Promise<Response> {
 	const headers = new Headers(init.headers);
-	if (session.token) {
-		headers.set('Authorization', `Bearer ${session.token}`);
+	const sent = session.token;
+	if (sent) {
+		headers.set('Authorization', `Bearer ${sent}`);
 	}
 	if (init.body && !headers.has('Content-Type')) {
 		headers.set('Content-Type', 'application/json');
@@ -24,6 +25,10 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
 
 	// A failed sign-in is also a 401, but there is no session to expire and the server's reason must reach the form.
 	if (res.status === 401 && path !== '/api/auth/login') {
+		// If another call already rotated the token, retrying with it is enough.
+		if (!retried && sent && (session.token !== sent || (await session.refresh()))) {
+			return request(path, init, true);
+		}
 		session.clear();
 		goto('/login');
 		throw new ApiError(401, await errorMessage(res));

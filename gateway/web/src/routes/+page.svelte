@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { formatNumber } from '$lib/format';
 	import { apiFetch, ApiError } from '$lib/api';
 	import { session } from '$lib/session.svelte';
 	import { toastError } from '$lib/toast.svelte';
@@ -9,7 +10,9 @@
 	import AddNumberDialog from '$lib/components/AddNumberDialog.svelte';
 	import RegisterDialog from '$lib/components/RegisterDialog.svelte';
 	import VerifyDialog from '$lib/components/VerifyDialog.svelte';
-	import LinkDeviceDialog from '$lib/components/LinkDeviceDialog.svelte';
+	import LinkGatewayDialog from '$lib/components/LinkGatewayDialog.svelte';
+	import AddDeviceDialog from '$lib/components/AddDeviceDialog.svelte';
+	import RenameDialog from '$lib/components/RenameDialog.svelte';
 	import RemoveDeviceDialog from '$lib/components/RemoveDeviceDialog.svelte';
 	import PinDialog from '$lib/components/PinDialog.svelte';
 	import UnregisterDialog from '$lib/components/UnregisterDialog.svelte';
@@ -17,8 +20,9 @@
 
 	type Dialog =
 		| { kind: 'add' }
-		| { kind: 'link'; number: string }
-		| { kind: 'register' | 'verify' | 'pin' | 'unregister' | 'rate-limit'; number: string }
+		| { kind: 'link-gateway' }
+		| { kind: 'label'; number: string }
+		| { kind: 'register' | 'verify' | 'add-device' | 'rename' | 'pin' | 'unregister' | 'rate-limit'; number: string }
 		| { kind: 'remove-device'; number: string; device: Device };
 
 	let phase = $state<'loading' | 'ready' | 'unreachable'>('loading');
@@ -73,14 +77,17 @@
 	const summary = $derived.by(() => {
 		const total = `${numbers.length} ${numbers.length === 1 ? 'number' : 'numbers'}.`;
 		if (awaiting.length === 0) return total;
-		if (awaiting.length === 1) return `${total} ${awaiting[0].label || awaiting[0].number} is waiting for its code.`;
+		if (awaiting.length === 1) return `${total} ${awaiting[0].label || formatNumber(awaiting[0].number)} is waiting for its code.`;
 		return `${total} ${awaiting.length} are waiting for their codes.`;
 	});
 
-	function onaction(n: SignalNumber, kind: Exclude<Dialog['kind'], 'add'>, device?: Device) {
+	type RowKind = Exclude<Dialog['kind'], 'add' | 'link-gateway' | 'label'>;
+	function onaction(n: SignalNumber, kind: RowKind, device?: Device) {
 		if (kind === 'remove-device' && device) dialog = { kind, number: n.number, device };
 		else if (kind !== 'remove-device') dialog = { kind, number: n.number };
 	}
+
+	const labelOf = (number: string) => numbers.find((n) => n.number === number)?.label ?? '';
 </script>
 
 <Topbar {gateway} unreachable={phase === 'unreachable'} />
@@ -92,10 +99,13 @@
 			{#if phase === 'ready' && numbers.length > 0}<p class="muted mt-1 text-[15px]" data-testid="summary">{summary}</p>{/if}
 		</div>
 		{#if session.isAdmin && phase === 'ready' && numbers.length > 0}
-			<button type="button" class="xbtn xbtn-solid xbtn-lg" data-testid="action-add-number" onclick={() => (dialog = { kind: 'add' })}>
-				<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
-				Add a number
-			</button>
+			<div class="flex flex-wrap gap-2">
+				<button type="button" class="xbtn xbtn-lg" data-testid="action-link-gateway" onclick={() => (dialog = { kind: 'link-gateway' })}>Link this gateway to a phone</button>
+				<button type="button" class="xbtn xbtn-solid xbtn-lg" data-testid="action-add-number" onclick={() => (dialog = { kind: 'add' })}>
+					<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+					Add a number
+				</button>
+			</div>
 		{/if}
 	</div>
 
@@ -132,7 +142,10 @@
 					: 'An administrator has not added any numbers to this gateway yet.'}
 			</p>
 			{#if session.isAdmin}
-				<button type="button" class="xbtn xbtn-solid xbtn-lg mt-5" data-testid="action-add-number-empty" onclick={() => (dialog = { kind: 'add' })}>Add a number</button>
+				<div class="mt-5 flex flex-wrap justify-center gap-2">
+					<button type="button" class="xbtn xbtn-lg" data-testid="action-link-gateway-empty" onclick={() => (dialog = { kind: 'link-gateway' })}>Link this gateway to a phone</button>
+					<button type="button" class="xbtn xbtn-solid xbtn-lg" data-testid="action-add-number-empty" onclick={() => (dialog = { kind: 'add' })}>Add a number</button>
+				</div>
 			{/if}
 		</section>
 	{:else}
@@ -147,7 +160,7 @@
 			{/each}
 		</section>
 		<p class="muted mt-4 text-sm">
-			Lamp key: green is registered, amber is waiting for a code, grey is not registered. Filled circles under Devices were seen in the last day; the hollow one has not been seen recently.
+			Lamp key: green is registered, amber is waiting for a code, grey is not registered. Filled device dots were seen in the last day; a hollow dot has not been seen for over a day.
 		</p>
 	{/if}
 </main>
@@ -158,8 +171,14 @@
 	<RegisterDialog number={dialog.number} onclose={() => (dialog = null)} ondone={() => done({ kind: 'verify', number: (dialog as { number: string }).number })} />
 {:else if dialog?.kind === 'verify'}
 	<VerifyDialog number={dialog.number} onclose={() => (dialog = null)} ondone={() => done()} />
-{:else if dialog?.kind === 'link'}
-	<LinkDeviceDialog {numbers} load={fetchNumbers} onclose={() => (dialog = null)} ondone={() => done()} />
+{:else if dialog?.kind === 'link-gateway'}
+	<LinkGatewayDialog {numbers} load={fetchNumbers} onclose={() => (dialog = null)} ondone={(number) => done({ kind: 'label', number })} />
+{:else if dialog?.kind === 'label'}
+	<RenameDialog number={dialog.number} current={labelOf(dialog.number)} title="Label the linked number" onclose={() => (dialog = null)} ondone={() => done()} />
+{:else if dialog?.kind === 'rename'}
+	<RenameDialog number={dialog.number} current={labelOf(dialog.number)} title="Rename" onclose={() => (dialog = null)} ondone={() => done()} />
+{:else if dialog?.kind === 'add-device'}
+	<AddDeviceDialog number={dialog.number} onclose={() => (dialog = null)} ondone={() => done()} />
 {:else if dialog?.kind === 'remove-device'}
 	<RemoveDeviceDialog number={dialog.number} device={dialog.device} onclose={() => (dialog = null)} ondone={() => done()} />
 {:else if dialog?.kind === 'pin'}

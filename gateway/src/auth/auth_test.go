@@ -33,7 +33,8 @@ func newService(t *testing.T, mutate func(*config.Config)) (*Service, *bytes.Buf
 	t.Helper()
 	dir := t.TempDir()
 	cfg := &config.Config{
-		JWT:        config.JWTConfig{PrivateKeyPath: filepath.Join(dir, "k", "priv.pem"), PublicKeyPath: filepath.Join(dir, "k", "pub.pem"), TokenTTL: time.Hour},
+		JWT:        config.JWTConfig{PrivateKeyPath: filepath.Join(dir, "k", "priv.pem"), PublicKeyPath: filepath.Join(dir, "k", "pub.pem"), AccessTTL: time.Hour, RefreshTTL: 8 * time.Hour},
+		AD:         config.ADConfig{Timeout: time.Second},
 		FirstAdmin: config.FirstAdminConfig{Username: "admin", Password: adminPW},
 	}
 	if mutate != nil {
@@ -71,10 +72,10 @@ func TestLocalLogin(t *testing.T) {
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tc.wantErr)
 			}
-			if err == nil && (tok == "" || u != (User{Username: "admin", Name: "admin", Role: RoleAdmin})) {
+			if err == nil && (tok.Token == "" || tok.RefreshToken == "" || u != (User{Username: "admin", Name: "Administrator", Role: RoleAdmin, Source: "local"})) {
 				t.Fatalf("token %q user %+v", tok, u)
 			}
-			if err != nil && tok != "" {
+			if err != nil && tok != (Tokens{}) {
 				t.Fatal("token issued on failure")
 			}
 		})
@@ -84,10 +85,11 @@ func TestLocalLogin(t *testing.T) {
 func TestVerify(t *testing.T) {
 	ctx := context.Background()
 	s, _ := newService(t, nil)
-	good, _, err := s.Login(ctx, "admin", adminPW)
+	goodTokens, _, err := s.Login(ctx, "admin", adminPW)
 	if err != nil {
 		t.Fatal(err)
 	}
+	good := goodTokens.Token
 
 	forged := func(method jwt.SigningMethod, key any, id string) string {
 		now := time.Now()
@@ -103,7 +105,8 @@ func TestVerify(t *testing.T) {
 	parts := strings.Split(good, ".")
 	tampered := parts[0] + "." + parts[1] + "x." + parts[2]
 
-	revoked, _, _ := s.Login(ctx, "admin", adminPW)
+	revokedTokens, _, _ := s.Login(ctx, "admin", adminPW)
+	revoked := revokedTokens.Token
 	if err := s.Logout(ctx, revoked); err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +183,7 @@ func TestDirectoryLogin(t *testing.T) {
 			if u.Role != tc.role {
 				t.Fatalf("role = %q, want %q", u.Role, tc.role)
 			}
-			if v, err := s.Verify(ctx, tok); err != nil || v != u {
+			if v, err := s.Verify(ctx, tok.Token); err != nil || v != u {
 				t.Fatalf("verify: %+v, %v", v, err)
 			}
 		})

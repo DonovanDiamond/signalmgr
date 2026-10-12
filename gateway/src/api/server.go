@@ -38,32 +38,52 @@ type server struct {
 
 type userKey struct{}
 
-// New builds the app. webFS/webErr come from web.FS(); without a built UI the
-// API still serves.
-func New(a *auth.Service, s *signal.Service, installationName string, webFS fs.FS, webErr error, log zerolog.Logger) *fiber.App {
+// New builds the app. webFS is web.FS(), which is a "UI not built" fallback
+// when there is no build, so the API always has something to serve. Only
+// requests from trustedProxies (CIDRs) may set the client IP through
+// X-Forwarded-For; with none, the header is ignored.
+func New(a *auth.Service, s *signal.Service, installationName string, trustedProxies []string, webFS fs.FS, log zerolog.Logger) *fiber.App {
 	srv := &server{auth: a, signal: s, installationName: installationName, log: log}
-	app := fiber.New(fiber.Config{BodyLimit: bodyLimit, UnescapePath: true, ErrorHandler: srv.errorHandler})
+	cfg := fiber.Config{BodyLimit: bodyLimit, UnescapePath: true, ErrorHandler: srv.errorHandler}
+	if len(trustedProxies) > 0 {
+		cfg.TrustProxy = true
+		cfg.ProxyHeader = fiber.HeaderXForwardedFor
+		// Without validation c.IP() is the raw header, so a spoofed leftmost entry mints a fresh limiter key.
+		cfg.EnableIPValidation = true
+		cfg.TrustProxyConfig = fiber.TrustProxyConfig{Proxies: trustedProxies}
+	}
+	app := fiber.New(cfg)
 
-	loginLimit := limiter.New(limiter.Config{
-		Max:                    loginFailuresPerMinute,
-		Expiration:             time.Minute,
-		SkipSuccessfulRequests: true,
-		LimitReached: func(c fiber.Ctx) error {
-			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "too many failed sign-in attempts; wait a minute and try again"})
-		},
-	})
+	// Each route gets its own counter, keyed on the client IP.
+	failureLimit := func() fiber.Handler {
+		return limiter.New(limiter.Config{
+			Max:                    loginFailuresPerMinute,
+			Expiration:             time.Minute,
+			SkipSuccessfulRequests: true,
+			LimitReached: func(c fiber.Ctx) error {
+				return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "too many failed sign-in attempts; wait a minute and try again"})
+			},
+		})
+	}
 
 	api := app.Group("/api")
-	api.Post("/auth/login", loginLimit, srv.login)
+	api.Post("/auth/login", failureLimit(), srv.login)
+	api.Post("/auth/refresh", failureLimit(), srv.refresh)
 
 	// Role is enforced here, per route, never inside a handler.
 	in, adm := srv.requireAuth, requireAdmin
 
 	api.Post("/auth/logout", in, srv.logout)
 	api.Get("/auth/me", in, srv.me)
+	api.Post("/auth/password", in, srv.changePassword)
 	api.Get("/gateway", in, srv.gateway)
 	api.Get("/numbers", in, srv.numbers)
 	api.Get("/audit", in, adm, srv.audit)
+
+	api.Get("/users", in, adm, srv.users)
+	api.Post("/users", in, adm, srv.addUser)
+	api.Patch("/users/:username", in, adm, srv.patchUser)
+	api.Put("/users/:username/password", in, adm, srv.resetPassword)
 
 	api.Post("/numbers", in, adm, srv.addNumber)
 	api.Patch("/numbers/:number", in, adm, srv.setLabel)
@@ -73,6 +93,7 @@ func New(a *auth.Service, s *signal.Service, installationName string, webFS fs.F
 	api.Delete("/numbers/:number/devices/:id", in, adm, srv.removeDevice)
 	api.Put("/numbers/:number/pin", in, adm, srv.setPin)
 	api.Delete("/numbers/:number/pin", in, adm, srv.removePin)
+	api.Post("/numbers/:number/devices", in, adm, srv.linkDevice)
 	api.Post("/numbers/:number/rate-limit", in, adm, srv.rateLimit)
 	api.Get("/link/qr", in, adm, srv.linkQR)
 	api.Get("/link/uri", in, adm, srv.linkURI)
@@ -83,10 +104,6 @@ func New(a *auth.Service, s *signal.Service, installationName string, webFS fs.F
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "no such endpoint: " + c.Method() + " " + c.Path()})
 	})
 
-	if webErr != nil {
-		log.Warn().Err(webErr).Msg("UI routes disabled")
-		return app
-	}
 	// A deep link such as /login is a client-side route, not a missing file.
 	app.Get("/*", static.New("", static.Config{
 		FS: webFS,
@@ -128,6 +145,7 @@ func currentUser(c fiber.Ctx) auth.User {
 func (s *server) fail(c fiber.Ctx, err error) error {
 	status, msg := fiber.StatusInternalServerError, "internal error"
 	var apiErr *signalmgr.APIError
+	var timeout *auth.DirectoryTimeoutError
 	switch {
 	case errors.As(err, &apiErr):
 		status, msg = apiErr.Status, apiErr.Message
@@ -137,7 +155,7 @@ func (s *server) fail(c fiber.Ctx, err error) error {
 		if msg == "" {
 			msg = http.StatusText(status)
 		}
-	case errors.Is(err, signal.ErrInvalid):
+	case errors.Is(err, signal.ErrInvalid), errors.Is(err, auth.ErrInvalidInput):
 		status, msg = fiber.StatusBadRequest, err.Error()
 	case errors.Is(err, db.ErrNotFound):
 		status, msg = fiber.StatusNotFound, "not found"
@@ -149,6 +167,10 @@ func (s *server) fail(c fiber.Ctx, err error) error {
 		status, msg = fiber.StatusUnauthorized, "wrong username or password"
 	case errors.Is(err, auth.ErrInvalidToken):
 		status, msg = fiber.StatusUnauthorized, "session is invalid or expired; sign in again"
+	case errors.As(err, &timeout):
+		status, msg = fiber.StatusServiceUnavailable, timeout.Error()
+	case errors.Is(err, auth.ErrDisabled):
+		status, msg = fiber.StatusForbidden, "this account is disabled; ask an administrator"
 	case errors.Is(err, auth.ErrDirectoryUnreachable):
 		status, msg = fiber.StatusServiceUnavailable, "the Active Directory server is unreachable; local accounts still work"
 	case errors.Is(err, auth.ErrNoRole):

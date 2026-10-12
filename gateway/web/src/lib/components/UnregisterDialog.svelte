@@ -36,8 +36,8 @@
 		<label class="flex items-start gap-2"><input type="checkbox" class="checkbox checkbox-sm mt-1" name="deleteLocalData" bind:checked={deleteLocalData} />
 			<span>Also delete the data stored on this gateway</span></label>
 		<div>
-			<label class="field-label" for="unreg-confirm">Type {number} to confirm</label>
-			<input id="unreg-confirm" class="input w-full" autocomplete="off" placeholder={number} bind:value={typed} />
+			<label class="field-label" for="unreg-confirm">Type {formatNumber(number)} to confirm</label>
+			<input id="unreg-confirm" class="input w-full" autocomplete="off" placeholder={formatNumber(number)} bind:value={typed} />
 		</div>
 		<div class="flex justify-end gap-2">
 			<button type="button" class="xbtn" onclick={onclose}>Cancel</button>

@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { theme } from '$lib/theme.svelte';
+
+	let { class: cls = 'xbtn' }: { class?: string } = $props();
 </script>
 
 <button
 	type="button"
-	class="xbtn"
+	class={cls}
 	data-testid="theme-toggle"
 	aria-label={theme.current === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
 	onclick={() => theme.toggle()}

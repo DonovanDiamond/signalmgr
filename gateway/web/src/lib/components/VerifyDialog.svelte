@@ -10,7 +10,7 @@
 	let pin = $state('');
 	let busy = $state(false);
 
-	const problem = $derived(/^\d{6}$/.test(code.trim()) ? '' : 'The code is 6 digits.');
+	const problem = $derived(/^\d{6}$/.test(code.trim()) ? '' : 'That is not a 6-digit code.');
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
@@ -30,8 +30,8 @@
 	<form onsubmit={submit} class="grid gap-4">
 		<div>
 			<label class="field-label" for="verify-code">6-digit code</label>
-			<input id="verify-code" class="input w-full tabular-nums" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" bind:value={code} required />
-			{#if code && problem}<p class="field-hint" role="status">{problem}</p>{/if}
+			<input id="verify-code" class="input code-input w-full" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" bind:value={code} required />
+			{#if code && problem}<p class="field-hint" role="alert">{problem} Enter all six digits, no spaces.</p>{/if}
 		</div>
 		<div>
 			<label class="field-label" for="verify-pin">Registration PIN (only if the number has one)</label>

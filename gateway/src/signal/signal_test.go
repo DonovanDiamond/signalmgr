@@ -220,3 +220,33 @@ func TestRemoveDeviceAndLink(t *testing.T) {
 		t.Errorf("audit: %+v", a)
 	}
 }
+
+func TestLinkDevice(t *testing.T) {
+	s, _ := setup(t, true)
+	ctx := context.Background()
+	uri := "sgnl://linkdevice?uuid=x&pub_key=y"
+	if err := s.LinkDevice(ctx, "a", "+27835550142", uri); err != nil {
+		t.Fatal(err)
+	}
+	if n := find(t, mustNumbers(t, s), "+27835550142"); len(n.Devices) != 2 {
+		t.Fatalf("devices: %+v", n.Devices)
+	}
+	if a := lastAudit(t, s); a.Action != "link_device" || a.Actor != "a" || a.Result != "ok" || strings.Contains(a.Detail, "uuid") {
+		t.Errorf("audit: %+v", a)
+	}
+	for name, c := range map[string][2]string{
+		"bad number": {"12", uri},
+		"bad prefix": {"+27835550142", "http://x"},
+		"too long":   {"+27835550142", uri + strings.Repeat("a", maxLinkURI)},
+	} {
+		if err := s.LinkDevice(ctx, "a", c[0], c[1]); !errors.Is(err, ErrInvalid) {
+			t.Errorf("%s: want ErrInvalid, got %v", name, err)
+		}
+	}
+	if err := s.LinkDevice(ctx, "a", "+27000000000", uri); err == nil || errors.Is(err, ErrInvalid) {
+		t.Errorf("unknown number: want upstream error, got %v", err)
+	}
+	if a := lastAudit(t, s); a.Result == "ok" {
+		t.Errorf("failure not audited: %+v", a)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func do(t *testing.T, h http.Handler, method, path, body string) *httptest.ResponseRecorder {
@@ -61,5 +62,49 @@ func TestQRCodeIsPNG(t *testing.T) {
 	rec := do(t, New(true), "GET", "/v1/qrcodelink?device_name=x", "")
 	if !strings.HasPrefix(rec.Body.String(), "\x89PNG") {
 		t.Fatal("not a PNG")
+	}
+}
+
+func TestLinkDevice(t *testing.T) {
+	h := New(true)
+	uri := `{"uri":"sgnl://linkdevice?uuid=x&pub_key=y"}`
+	if rec := do(t, h, "POST", "/v1/devices/+27835550142", uri); rec.Code != http.StatusNoContent {
+		t.Fatalf("link: %d %s", rec.Code, rec.Body)
+	}
+	rec := do(t, h, "GET", "/v1/devices/+27835550142", "")
+	if strings.Count(rec.Body.String(), `"id"`) != 2 || !strings.Contains(rec.Body.String(), `"New device"`) {
+		t.Fatalf("devices: %s", rec.Body)
+	}
+	if rec := do(t, h, "POST", "/v1/devices/+27835550142", `{"uri":"http://evil"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad uri: %d", rec.Code)
+	}
+	if rec := do(t, h, "POST", "/v1/devices/+27000000000", uri); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown number: %d", rec.Code)
+	}
+}
+
+func TestLinkAfterAddsAccount(t *testing.T) {
+	h := New(false)
+	do(t, h, "GET", "/v1/qrcodelink/raw?device_name=x", "")
+	if rec := do(t, h, "GET", "/v1/accounts", ""); strings.TrimSpace(rec.Body.String()) != "[]" {
+		t.Fatalf("LinkAfter zero must never link: %s", rec.Body)
+	}
+	h.LinkAfter = 10 * time.Millisecond
+	do(t, h, "GET", "/v1/qrcodelink?device_name=x", "")
+	time.Sleep(200 * time.Millisecond)
+	if rec := do(t, h, "GET", "/v1/accounts", ""); !strings.Contains(rec.Body.String(), "+27605550001") {
+		t.Fatalf("accounts: %s", rec.Body)
+	}
+}
+
+func TestSeedDesign(t *testing.T) {
+	h := New(false)
+	h.SeedDesign()
+	rec := do(t, h, "GET", "/v1/devices/+27825550143", "")
+	if strings.Count(rec.Body.String(), `"id"`) != 3 {
+		t.Fatalf("devices: %s", rec.Body)
+	}
+	if rec := do(t, h, "GET", "/v1/devices/+27715550198", ""); rec.Code != http.StatusOK {
+		t.Fatalf("pastoral: %d", rec.Code)
 	}
 }

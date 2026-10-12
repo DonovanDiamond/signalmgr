@@ -28,6 +28,9 @@ const (
 	maxLabel      = 64
 	maxDeviceName = 64
 	maxToken      = 4096
+
+	linkURIPrefix = "sgnl://linkdevice?"
+	maxLinkURI    = 2048
 )
 
 var (
@@ -104,6 +107,13 @@ func validatePin(p string) error {
 func validateDeviceName(n string) error {
 	if c := utf8.RuneCountInString(n); c < 1 || c > maxDeviceName {
 		return fmt.Errorf("%w: device name must be 1 to %d characters", ErrInvalid, maxDeviceName)
+	}
+	return nil
+}
+
+func validateLinkURI(u string) error {
+	if !strings.HasPrefix(u, linkURIPrefix) || len(u) > maxLinkURI {
+		return fmt.Errorf("%w: link URI must start with %s and be at most %d characters", ErrInvalid, linkURIPrefix, maxLinkURI)
 	}
 	return nil
 }
@@ -305,6 +315,19 @@ func (s *Service) RemoveDevice(ctx context.Context, actor, number string, id int
 		err = s.upstream(acc.DeleteDevice(id))
 	}
 	s.audit(ctx, actor, "remove_device", number, fmt.Sprintf("device_id=%d", id), err)
+	return err
+}
+
+func (s *Service) LinkDevice(ctx context.Context, actor, number, uri string) error {
+	err := errors.Join(ValidateNumber(number), validateLinkURI(uri))
+	if err == nil {
+		acc := signalmgr.Account{Number: number}
+		err = s.upstream(acc.PostLinkDevice(struct {
+			URI string `json:"uri"`
+		}{uri}))
+	}
+	// The URI carries a one-time key, so it is not written to the audit row.
+	s.audit(ctx, actor, "link_device", number, "", err)
 	return err
 }
 

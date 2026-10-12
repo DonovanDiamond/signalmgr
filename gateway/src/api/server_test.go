@@ -35,9 +35,12 @@ const (
 type env struct {
 	app  *fiber.App
 	fake *httptest.Server
+	auth *auth.Service
 }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t *testing.T) *env { return newEnvProxies(t, nil) }
+
+func newEnvProxies(t *testing.T, trusted []string) *env {
 	t.Helper()
 	dir := t.TempDir()
 	yaml := fmt.Sprintf("db: %s\njwt:\n  private_key_path: %s\n  public_key_path: %s\nfirst_admin:\n  password: %s\n",
@@ -71,7 +74,7 @@ func newEnv(t *testing.T) *env {
 	fake := httptest.NewServer(fakesignal.New(true))
 	t.Cleanup(fake.Close)
 	webFS := fstest.MapFS{"index.html": {Data: []byte("<html>spa</html>")}, "app.js": {Data: []byte("js")}}
-	return &env{app: New(a, sig.New(x, fake.URL, log), "Test Install", webFS, nil, log), fake: fake}
+	return &env{app: New(a, sig.New(x, fake.URL, log), "Test Install", trusted, webFS, log), fake: fake, auth: a}
 }
 
 type reply struct {
@@ -384,5 +387,206 @@ func TestSPA(t *testing.T) {
 				t.Errorf("got %d %s", r.status, r.body)
 			}
 		})
+	}
+}
+
+func (e *env) loginTokens(t *testing.T, username, password string) (token, refresh string) {
+	t.Helper()
+	r := e.do(t, "POST", "/api/auth/login", "", fmt.Sprintf(`{"username":%q,"password":%q}`, username, password))
+	var out struct{ Token, RefreshToken string }
+	if err := json.Unmarshal([]byte(r.body), &out); r.status != 200 || err != nil {
+		t.Fatalf("login %s: %d %s", username, r.status, r.body)
+	}
+	return out.Token, out.RefreshToken
+}
+
+func TestRefreshEndpoint(t *testing.T) {
+	e := newEnv(t)
+	token, refresh := e.loginTokens(t, "admin", adminPass)
+	if r := e.do(t, "POST", "/api/auth/login", "", `{"username":"admin","password":"`+adminPass+`"}`); !strings.Contains(r.body, `"source":"local"`) || !strings.Contains(r.body, `"name":"Administrator"`) {
+		t.Errorf("login user shape: %s", r.body)
+	}
+
+	r := e.do(t, "POST", "/api/auth/refresh", "", fmt.Sprintf(`{"refreshToken":%q}`, refresh))
+	var out struct {
+		Token, RefreshToken string
+		User                auth.User
+	}
+	if err := json.Unmarshal([]byte(r.body), &out); r.status != 200 || err != nil || out.Token == "" || out.RefreshToken == refresh || out.User.Username != "admin" {
+		t.Fatalf("refresh: %d %s", r.status, r.body)
+	}
+	if r := e.do(t, "GET", "/api/auth/me", out.Token, ""); r.status != 200 {
+		t.Errorf("new token: %d", r.status)
+	}
+	if r := e.do(t, "GET", "/api/auth/me", token, ""); r.status != 401 {
+		t.Errorf("old access token after rotation: %d", r.status)
+	}
+	tests := []struct {
+		name, body string
+		status     int
+	}{
+		{"spent token", fmt.Sprintf(`{"refreshToken":%q}`, refresh), 401},
+		{"garbage", `{"refreshToken":"x"}`, 401},
+		{"missing", `{}`, 401},
+		{"not json", `hi`, 400},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if r := e.do(t, "POST", "/api/auth/refresh", "", tc.body); r.status != tc.status {
+				t.Errorf("got %d %s, want %d", r.status, r.body, tc.status)
+			}
+		})
+	}
+	for i := 0; i < loginFailuresPerMinute; i++ {
+		e.do(t, "POST", "/api/auth/refresh", "", `{"refreshToken":"x"}`)
+	}
+	if r := e.do(t, "POST", "/api/auth/refresh", "", `{"refreshToken":"x"}`); r.status != 429 {
+		t.Errorf("refresh not rate limited: %d", r.status)
+	}
+}
+
+func TestDisabledUserEndToEnd(t *testing.T) {
+	e := newEnv(t)
+	admin := e.login(t, "admin", adminPass)
+	token, refresh := e.loginTokens(t, "viewer", userPass)
+	if r := e.do(t, "PATCH", "/api/users/viewer", admin, `{"disabled":true}`); r.status != 204 {
+		t.Fatalf("disable: %d %s", r.status, r.body)
+	}
+	if r := e.do(t, "GET", "/api/numbers", token, ""); r.status != 401 {
+		t.Errorf("disabled user's token: %d", r.status)
+	}
+	if r := e.do(t, "POST", "/api/auth/refresh", "", fmt.Sprintf(`{"refreshToken":%q}`, refresh)); r.status != 401 {
+		t.Errorf("disabled user refresh: %d", r.status)
+	}
+	if r := e.do(t, "POST", "/api/auth/login", "", `{"username":"viewer","password":"`+userPass+`"}`); r.status != 403 {
+		t.Errorf("disabled user login: %d %s", r.status, r.body)
+	}
+}
+
+func TestUsersRoutes(t *testing.T) {
+	e := newEnv(t)
+	admin := e.login(t, "admin", adminPass)
+	viewer := e.login(t, "viewer", userPass)
+	const newUser = `{"username":"carol","name":"Carol","role":"user","password":"carol-password-1"}`
+	tests := []struct {
+		name, method, path, body, token string
+		status                          int
+	}{
+		{"list without token", "GET", "/api/users", "", "", 401},
+		{"list as user", "GET", "/api/users", "", viewer, 403},
+		{"create as user", "POST", "/api/users", newUser, viewer, 403},
+		{"patch as user", "PATCH", "/api/users/viewer", `{"disabled":true}`, viewer, 403},
+		{"reset as user", "PUT", "/api/users/admin/password", `{"password":"hacked-password-1"}`, viewer, 403},
+		{"link device as user", "POST", "/api/numbers/%2B27821234567/devices", `{"uri":"sgnl://linkdevice?uuid=x"}`, viewer, 403},
+		{"list as admin", "GET", "/api/users", "", admin, 200},
+		{"create not json", "POST", "/api/users", `hi`, admin, 400},
+		{"create short password", "POST", "/api/users", `{"username":"dave","name":"Dave","role":"user","password":"short"}`, admin, 400},
+		{"create bad role", "POST", "/api/users", `{"username":"dave","name":"Dave","role":"root","password":"dave-password-12"}`, admin, 400},
+		{"create ok", "POST", "/api/users", newUser, admin, 204},
+		{"create duplicate", "POST", "/api/users", newUser, admin, 409},
+		{"disable self", "PATCH", "/api/users/admin", `{"disabled":true}`, admin, 400},
+		{"patch without field", "PATCH", "/api/users/carol", `{}`, admin, 400},
+		{"patch unknown", "PATCH", "/api/users/ghost", `{"disabled":true}`, admin, 404},
+		{"patch ok", "PATCH", "/api/users/carol", `{"disabled":true}`, admin, 204},
+		{"reset short", "PUT", "/api/users/carol/password", `{"password":"short"}`, admin, 400},
+		{"reset unknown", "PUT", "/api/users/ghost/password", `{"password":"ghost-password-123"}`, admin, 404},
+		{"reset ok", "PUT", "/api/users/carol/password", `{"password":"carol-reset-password"}`, admin, 204},
+		{"link device ok", "POST", "/api/numbers/%2B27821234567/devices", `{"uri":"sgnl://linkdevice?uuid=x"}`, admin, 204},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if r := e.do(t, tc.method, tc.path, tc.token, tc.body); r.status != tc.status {
+				t.Errorf("got %d %s, want %d", r.status, r.body, tc.status)
+			}
+		})
+	}
+	r := e.do(t, "GET", "/api/users", admin, "")
+	if !strings.Contains(r.body, `{"username":"carol","name":"Carol","role":"user","source":"local","disabled":true}`) {
+		t.Errorf("list body: %s", r.body)
+	}
+	if a := e.do(t, "GET", "/api/audit", admin, ""); !strings.Contains(a.body, "create_user") || !strings.Contains(a.body, "reset_user_password") {
+		t.Errorf("user management not audited: %s", a.body)
+	}
+}
+
+func TestChangePasswordRoute(t *testing.T) {
+	e := newEnv(t)
+	viewer := e.login(t, "viewer", userPass)
+	tests := []struct {
+		name, body string
+		status     int
+	}{
+		{"wrong current is 400 not 401", `{"current":"wrong-password-xx","new":"another-password-1"}`, 400},
+		{"too short", `{"current":"` + userPass + `","new":"short"}`, 400},
+		{"not json", `hi`, 400},
+		{"ok", `{"current":"` + userPass + `","new":"another-password-1"}`, 204},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if r := e.do(t, "POST", "/api/auth/password", viewer, tc.body); r.status != tc.status {
+				t.Errorf("got %d %s, want %d", r.status, r.body, tc.status)
+			}
+		})
+	}
+	if r := e.do(t, "POST", "/api/auth/password", "", `{}`); r.status != 401 {
+		t.Errorf("without token: %d", r.status)
+	}
+	e.login(t, "viewer", "another-password-1")
+}
+
+// app.Test connects from 0.0.0.0; X-Forwarded-For only counts when that
+// address is a trusted proxy.
+func TestTrustedProxyKeysLimiter(t *testing.T) {
+	bad := `{"username":"admin","password":"nope-nope-nope"}`
+	tests := []struct {
+		name    string
+		trusted []string
+		// the Nth failure from a different forwarded address is limited or not
+		wantLimited bool
+	}{
+		{"untrusted: header ignored, all clients share the proxy's address", nil, true},
+		{"trusted: each forwarded client has its own counter", []string{"0.0.0.0/32"}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnvProxies(t, tc.trusted)
+			last := 0
+			for i := 0; i <= loginFailuresPerMinute; i++ {
+				req := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(bad))
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("X-Forwarded-For", fmt.Sprintf("203.0.113.%d", i+1))
+				res, err := e.app.Test(req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				res.Body.Close()
+				last = res.StatusCode
+			}
+			if limited := last == 429; limited != tc.wantLimited {
+				t.Errorf("last status %d, limited = %t, want %t", last, limited, tc.wantLimited)
+			}
+		})
+	}
+}
+
+// The proxy appends the real client address; whatever the client put to its
+// left must not give it a fresh limiter key.
+func TestSpoofedForwardedForSharesLimiter(t *testing.T) {
+	bad := `{"username":"admin","password":"nope-nope-nope"}`
+	e := newEnvProxies(t, []string{"0.0.0.0/32"})
+	last := 0
+	for i := 0; i <= loginFailuresPerMinute; i++ {
+		req := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(bad))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Forwarded-For", fmt.Sprintf("203.0.113.%d, 198.51.100.7", i+1))
+		res, err := e.app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		last = res.StatusCode
+	}
+	if last != 429 {
+		t.Errorf("last status %d, want 429: spoofed leftmost entries bypass the limiter", last)
 	}
 }

@@ -52,11 +52,47 @@ See also [README.md](README.md) and [IMPLEMENTATION.md](IMPLEMENTATION.md). Each
 
 ## Password length and changing passwords
 
-**Open.** Minimum local password length is 12. There is no change-password endpoint yet, so a generated first-admin password cannot be changed from the UI.
+**Decided.** Local passwords are 12 to 72 bytes (72 is bcrypt's input limit). Any local user changes their own password with `POST /api/auth/password` (current password required); an administrator can reset another local user's. AD accounts change theirs in the directory.
 
-## No refresh token
+## Refresh tokens
 
-**Open.** The session is one 8-hour JWT backed by a revocable row in `sessions`. The house style asks for short-lived access tokens with refresh tokens; this deviates to avoid a refresh flow in a small tool. Sign-out revokes the session.
+**Decided.** Sign-in returns a 15-minute access JWT and an opaque refresh token valid for 8 hours (`jwt.access_ttl`, `jwt.refresh_ttl`), as the house style asks. Only the refresh token's SHA-256 is stored, in the `sessions` row. Sign-out revokes the session.
+
+## Link naming
+
+**Decided.** Two different things, named apart in the UI. "Link this gateway to a phone" (`LinkGatewayDialog`) shows a QR for a phone's Signal account to adopt the gateway as a linked device; it succeeds when a new account number appears in the list, then offers to label it. "Add a device" (`AddDeviceDialog`) takes a `sgnl://linkdevice?` URI from a new device and adds that device to one existing number.
+
+## Refresh rotation
+
+**Decided.** Each refresh spends the token and makes a new session with a new refresh token, and the old session is revoked. There is no reuse detection: a replayed spent token is simply refused (401), and does not revoke the new session. A refresh carries the original refresh expiry forward unchanged, so `refresh_ttl` is absolute, counted from sign-in.
+
+## Input limits for users
+
+**Decided.** Usernames match `[A-Za-z0-9._@-]{1,64}`, display names are 1 to 100 characters, passwords 12 to 72 bytes.
+
+## Which password changes end sessions
+
+**Decided.** Changing your own password does not revoke your other sessions. An administrator's reset of a password, and disabling a user, revoke all of that user's sessions.
+
+## AD users cannot be disabled
+
+**Decided.** Disabling is for local accounts; an AD account is disabled in the directory (the admin API refuses with 400). A disabled local user who gives the correct password gets 403 saying the account is disabled, and a wrong password still gets 401. A disabled user's refresh token is refused (401).
+
+## Trusted proxies
+
+**Decided.** `trusted_proxies` takes CIDRs only (`/32` for a single host); bare addresses are refused. Only requests from those peers may set the client IP, through `X-Forwarded-For`, which fiber reads right to left and validates as an IP. With none configured the header is ignored, since any client could forge it.
+
+## Refresh token storage in the browser
+
+**Decided.** Access and refresh tokens are kept in `sessionStorage`, so they last for the tab and are gone when it closes. Never `localStorage`.
+
+## AD timeout leaves a goroutine behind
+
+**Open.** `ad.timeout` stops the sign-in waiting, but `go-ad-auth` has no deadline, so the LDAP call is abandoned on its own goroutine until the OS gives up on the connection. Repeated timeouts against a dead directory can accumulate goroutines. The failed-sign-in limit slows this but does not prevent it.
+
+## `jwt.token_ttl` is now rejected
+
+**Open.** The key was replaced by `access_ttl` and `refresh_ttl`, and unknown keys are refused, so an existing `config.yaml` that sets `token_ttl` stops the gateway starting with a parse error. Breaking for existing installations; the alternative is to accept and ignore it.
 
 ## bcrypt cost
 
@@ -64,7 +100,7 @@ See also [README.md](README.md) and [IMPLEMENTATION.md](IMPLEMENTATION.md). Each
 
 ## AD bind has no timeout
 
-**Open.** `go-ad-auth` takes no context, so a dead directory server can hold a sign-in request until the OS gives up. Local accounts are unaffected.
+**Decided.** `ad.timeout` (default 10s) bounds how long a sign-in waits and a timeout is reported as 503 with the timeout in the message. The library still has no deadline; see "AD timeout leaves a goroutine behind". Local accounts are unaffected.
 
 ## PostgreSQL
 
@@ -88,7 +124,7 @@ See also [README.md](README.md) and [IMPLEMENTATION.md](IMPLEMENTATION.md). Each
 
 ## Login rate limit
 
-**Decided.** 10 failed sign-ins per minute per client IP, using fiber's in-memory limiter; successful sign-ins are not counted. Behind a reverse proxy all clients share the proxy's address unless fiber is configured to trust proxy headers, which it is not.
+**Decided.** 10 failed sign-ins per minute per client IP, using fiber's in-memory limiter; successful sign-ins are not counted. Behind a reverse proxy all clients share the proxy's address unless `trusted_proxies` is set (see "Trusted proxies"). `POST /auth/refresh` has its own counter of the same size.
 
 ## Successful mutations return 204
 
@@ -96,4 +132,4 @@ See also [README.md](README.md) and [IMPLEMENTATION.md](IMPLEMENTATION.md). Each
 
 ## Missing config file
 
-**Decided.** `-config` pointing at a missing file means all defaults. `config.Load` has no exported defaults, so `main` loads an empty temporary file. If `config` grows an exported `Defaults()`, use it instead.
+**Decided.** `-config` pointing at a missing file means all defaults. `main` uses `config.Defaults().Resolve()`.
