@@ -5,8 +5,8 @@
 ## api.go — HTTP core (private)
 - `API_URL` — api.go:13 — base URL var, default `http://127.0.0.1:8080`
 - `APIError` — api.go:17 — exported non-2xx error (status, message, account, challenge_tokens); use errors.As
-- `encodeParams` — api.go:21 — query string builder
-- `methods` — api.go:29 — HTTP verb to fiber agent constructor map
+- `encodeParams` — api.go:38 — query string builder
+- `methods` — api.go:46 — HTTP verb to fiber agent constructor map
 - `request` — api.go:57 — runs the fiber agent, maps API errors, returns raw body
 - `requestJSON[T]` — api.go:83 — `request` + JSON decode into `T`
 - `getRaw`, `get[T]`, `post[T]`, `put[T]`, `delete[T]` — api.go:95–123 — typed request helpers
