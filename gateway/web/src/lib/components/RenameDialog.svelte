@@ -32,7 +32,7 @@
 	<form onsubmit={submit} class="grid gap-4">
 		<div>
 			<label class="field-label" for="rename-label">Label for {formatNumber(number)}</label>
-			<input id="rename-label" class="input w-full" type="text" placeholder="Reception" bind:value={label} />
+			<input id="rename-label" class="input w-full" type="text" placeholder="e.g. Reception" bind:value={label} />
 		</div>
 		<div class="flex justify-end gap-2">
 			<button type="button" class="xbtn" onclick={onclose}>Skip</button>

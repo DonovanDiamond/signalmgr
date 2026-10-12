@@ -99,7 +99,7 @@
 			{#if phase === 'ready' && numbers.length > 0}<p class="muted mt-1 text-[15px]" data-testid="summary">{summary}</p>{/if}
 		</div>
 		{#if session.isAdmin && phase === 'ready' && numbers.length > 0}
-			<div class="flex flex-wrap gap-2">
+			<div class="head-actions flex flex-wrap gap-2">
 				<button type="button" class="xbtn xbtn-lg" data-testid="action-link-gateway" onclick={() => (dialog = { kind: 'link-gateway' })}>Link this gateway to a phone</button>
 				<button type="button" class="xbtn xbtn-solid xbtn-lg" data-testid="action-add-number" onclick={() => (dialog = { kind: 'add' })}>
 					<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>

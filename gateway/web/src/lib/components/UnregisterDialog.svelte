@@ -38,6 +38,7 @@
 		<div>
 			<label class="field-label" for="unreg-confirm">Type {formatNumber(number)} to confirm</label>
 			<input id="unreg-confirm" class="input w-full" autocomplete="off" placeholder={formatNumber(number)} bind:value={typed} />
+			{#if typed && !matches}<p class="field-hint" role="status">That does not match {formatNumber(number)}.</p>{/if}
 		</div>
 		<div class="flex justify-end gap-2">
 			<button type="button" class="xbtn" onclick={onclose}>Cancel</button>

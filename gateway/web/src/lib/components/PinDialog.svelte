@@ -35,7 +35,7 @@
 		<div>
 			<label class="field-label" for="pin-new">New PIN</label>
 			<input id="pin-new" class="input w-full" type="password" autocomplete="new-password" bind:value={pin} required />
-			{#if pin && problem}<p class="field-hint" role="status">{problem}</p>{/if}
+			{#if problem}<p class="field-hint" role="status">{problem}</p>{/if}
 		</div>
 		<div class="flex justify-end gap-2">
 			<button type="button" class="xbtn" onclick={onclose}>Cancel</button>

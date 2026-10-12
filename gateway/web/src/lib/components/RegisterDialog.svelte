@@ -42,7 +42,7 @@
 		<div>
 			<label class="field-label" for="reg-captcha">Captcha token</label>
 			<textarea id="reg-captcha" class="textarea w-full" rows="3" placeholder="signalcaptcha://…" bind:value={captcha} required></textarea>
-			{#if captcha && problem}<p class="field-hint" role="status">{problem}</p>{/if}
+			{#if problem}<p class="field-hint" role="status">{problem}</p>{/if}
 		</div>
 		<fieldset>
 			<legend class="field-label">Send the code by</legend>

@@ -5,6 +5,8 @@
 
 @plugin "daisyui" {
 	themes: false;
+	/* A native modal dialog already blocks the page; locking scroll shifts it. */
+	exclude: rootscrolllock, rootscrollgutter;
 }
 
 /* Exchange palette. daisyUI maps: base-100 panel, base-200 ground,
@@ -77,6 +79,7 @@
 	--muted: #3f4a44;
 	--sub: #f7f9f6;
 	--off: #6f7a74;
+	--placeholder: #6b756f;
 	--danger: #b42318;
 	--link-hover: #123e60;
 }
@@ -84,6 +87,7 @@
 	--muted: #aab5ae;
 	--sub: #161c19;
 	--off: #8a958f;
+	--placeholder: #8a958f;
 	--danger: #ff9a90;
 	--link-hover: #b4d6f2;
 }
@@ -119,7 +123,7 @@ summary:focus-visible {
 	outline-offset: 2px;
 }
 ::placeholder {
-	color: var(--muted);
+	color: var(--placeholder);
 	opacity: 1;
 }
 
@@ -302,6 +306,13 @@ summary:focus-visible {
 		flex-direction: column;
 		align-items: flex-start !important;
 	}
+	.head-actions {
+		flex-direction: column;
+		align-self: stretch;
+	}
+	.head-actions > .xbtn {
+		width: 100%;
+	}
 	.row {
 		grid-template-columns: minmax(0, 1fr);
 		padding: 16px;
@@ -332,4 +343,10 @@ summary:focus-visible {
 	font-variant-numeric: tabular-nums;
 	padding-block: 12px;
 	height: auto;
+}
+
+/* Full-viewport backdrop. */
+.modal {
+	position: fixed;
+	inset: 0;
 }

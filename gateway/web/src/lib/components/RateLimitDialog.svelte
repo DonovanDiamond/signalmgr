@@ -48,7 +48,7 @@
 		<div>
 			<label class="field-label" for="rl-captcha">Captcha token</label>
 			<textarea id="rl-captcha" class="textarea w-full" rows="3" placeholder="signalcaptcha://…" bind:value={captcha} required></textarea>
-			{#if captcha && problem}<p class="field-hint" role="status">{problem}</p>{/if}
+			{#if problem}<p class="field-hint" role="status">{problem}</p>{/if}
 		</div>
 		<div class="flex justify-end gap-2">
 			<button type="button" class="xbtn" onclick={onclose}>Cancel</button>

@@ -31,7 +31,7 @@
 		<div>
 			<label class="field-label" for="verify-code">6-digit code</label>
 			<input id="verify-code" class="input code-input w-full" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" bind:value={code} required />
-			{#if code && problem}<p class="field-hint" role="alert">{problem} Enter all six digits, no spaces.</p>{/if}
+			{#if problem}<p class="field-hint" role="status">{problem} Enter all six digits, no spaces.</p>{/if}
 		</div>
 		<div>
 			<label class="field-label" for="verify-pin">Registration PIN (only if the number has one)</label>

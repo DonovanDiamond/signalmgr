@@ -13,8 +13,15 @@
 	const user = $derived(session.user);
 	const roleText = $derived(user?.role === 'admin' ? 'Administrator' : 'User');
 	// The role adds nothing for an ordinary user; say it only for the elevated one.
+	// Username and role are shown only when they add something to the display name.
 	const detail = $derived(
-		[user?.role === 'admin' ? roleText : '', user?.source === 'ad' ? 'Active Directory' : ''].filter(Boolean).join(', ')
+		[
+			user && user.username !== user.name ? user.username : '',
+			user?.role === 'admin' && user.name !== roleText ? roleText : '',
+			user?.source === 'ad' ? 'Active Directory' : ''
+		]
+			.filter(Boolean)
+			.join(', ')
 	);
 
 	function outside(e: MouseEvent) {
@@ -46,7 +53,7 @@
 			<div class="menu-panel" role="menu" data-testid="account-menu">
 				<div class="grid gap-1 p-3" style="border-bottom:1px solid var(--color-base-300)">
 					<span class="font-bold break-words">{user.name}</span>
-					<span class="narrow muted text-sm break-words">{user.username}{detail ? `, ${detail}` : ''}</span>
+					{#if detail}<span class="narrow muted text-sm break-words">{detail}</span>{/if}
 				</div>
 				<div class="grid gap-1 p-3 text-sm" style="border-bottom:1px solid var(--color-base-300)" data-testid="gateway-status">
 					<span class="inline-flex items-center gap-2">

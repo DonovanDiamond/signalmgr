@@ -29,7 +29,7 @@
 			<label class="field-label" for="device-uri">Link from the new device</label>
 			<input id="device-uri" class="input w-full" autocomplete="off" spellcheck="false" placeholder="sgnl://linkdevice?uuid=…" bind:value={uri} required />
 			<p class="field-hint">In Signal Desktop or iPad, choose to link this device, then copy the link shown under the QR code.</p>
-			{#if uri && problem}<p class="field-hint" role="status">{problem}</p>{/if}
+			{#if problem}<p class="field-hint" role="status">{problem}</p>{/if}
 		</div>
 		<div class="flex justify-end gap-2">
 			<button type="button" class="xbtn" onclick={onclose}>Cancel</button>

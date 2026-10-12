@@ -12,11 +12,13 @@
 	let busy = $state(false);
 
 	const problem = $derived(
-		next && next.length < MIN_PASSWORD_LENGTH
-			? `The new password needs at least ${MIN_PASSWORD_LENGTH} characters.`
-			: confirm && confirm !== next
-				? 'The two new passwords do not match.'
-				: ''
+		!current
+			? 'Enter your current password.'
+			: next.length < MIN_PASSWORD_LENGTH
+				? `The new password needs at least ${MIN_PASSWORD_LENGTH} characters.`
+				: confirm !== next
+					? 'The two new passwords do not match.'
+					: ''
 	);
 
 	async function submit(e: SubmitEvent) {
@@ -49,7 +51,7 @@
 		{#if problem}<p class="field-hint" role="status">{problem}</p>{/if}
 		<div class="flex justify-end gap-2">
 			<button type="button" class="xbtn" onclick={onclose}>Cancel</button>
-			<button type="submit" class="xbtn xbtn-solid" data-testid="submit" disabled={busy || !current || !next || !!problem || confirm !== next}>{busy ? 'Saving…' : 'Change password'}</button>
+			<button type="submit" class="xbtn xbtn-solid" data-testid="submit" disabled={busy || !!problem}>{busy ? 'Saving…' : 'Change password'}</button>
 		</div>
 	</form>
 </Modal>

@@ -85,7 +85,7 @@
 		<form onsubmit={start} class="grid gap-4">
 			<div>
 				<label class="field-label" for="link-name">Name for this gateway</label>
-				<input id="link-name" class="input w-full" placeholder="Front desk gateway" bind:value={deviceName} required />
+				<input id="link-name" class="input w-full" placeholder="e.g. Front desk gateway" bind:value={deviceName} required />
 				<p class="field-hint">Shown in Signal under Linked devices on the phone.</p>
 			</div>
 			<div class="flex justify-end gap-2">
