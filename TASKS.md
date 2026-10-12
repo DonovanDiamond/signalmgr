@@ -5,6 +5,7 @@
 - Verified / reported / missing are three different things. I never present the last two as the first.
 - Nobody waits. Over budget = one check, then kill, then re-read git state before re-dispatching.
 - Never re-run a suite that passed with no change since. Last tested: none
+- Released: v0.2.0 at 9c9371d (2026-10-12)
 ### Governor log
 - 2026-10-12 — clean (session start, HEAD d65a5fb)
 - 2026-10-12 — T2 manifest clean; brief changed mid-run (alias dropped), worker complied.
