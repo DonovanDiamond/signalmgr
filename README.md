@@ -122,50 +122,50 @@ Each method is based on the methods in [signal-cli-rest-api swagger docs](https:
 
 ### Account Management
 
-- `GetAccounts()`: Lists all Signal accounts linked to the service.
-- `PostRegister(captcha string, useVoice bool)`: Register a phone number with the Signal network.
-- `PostRegisterVerify(token string, pin string)`: Verify a registered phone number.
-- `PostUnregister(data struct{ DeleteAccount bool; DeleteLocalData bool })`: Unregister a phone number and optionally delete its data.
-- `PostUsername(data struct{ Username string })`: Set a username for the account.
+- `GetAccounts() ([]Account, error)`: Lists all Signal accounts linked to the service.
+- `PostRegister(captcha string, useVoice bool) error`: Register a phone number with the Signal network.
+- `PostRegisterVerify(token string, pin string) error`: Verify a registered phone number.
+- `PostUnregister(data struct{ DeleteAccount bool; DeleteLocalData bool }) error`: Unregister a phone number and optionally delete its data.
+- `PostUsername(data struct{ Username string }) (Account_PostUsernameResponse, error)`: Set a username for the account.
 
 ### Messaging
 
-- `GetMessages()`: Receive Signal Messages, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `normal` or `native` mode.
-- `GetMessagesSocket(messages chan<- MessageResponse)`: Opens a socket to receive Signal Messages and sends them to the `messages` channel, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `json-rpc` mode.
-- `PostSend(data SendMessageV2)`: Send a message (supports text, mentions, attachments, etc.).
-- `PostReaction(data struct{ Reaction string; Recipient string; TargetAuthor string; Timestamp int64 })`: Send a reaction to a message.
-- `DeleteReaction(data struct{ Reaction string; Recipient string; TargetAuthor string; Timestamp int64 })`: Remove a reaction from a message.
-- `PostReceipts(data struct{ ReceiptType string; Recipient string; Timestamp int64 })`: Send a read/viewed receipt for a message.
+- `GetMessages() ([]MessageResponse, error)`: Receive Signal Messages, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `normal` or `native` mode.
+- `GetMessagesSocket(messages chan<- MessageResponse) error`: Opens a socket to receive Signal Messages and sends them to the `messages` channel, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `json-rpc` mode.
+- `PostSend(data SendMessageV2) (struct{ Timestamp string }, error)`: Send a message (supports text, mentions, attachments, etc.).
+- `PostReaction(data struct{ Reaction string; Recipient string; TargetAuthor string; Timestamp int64 }) error`: Send a reaction to a message.
+- `DeleteReaction(data struct{ Reaction string; Recipient string; TargetAuthor string; Timestamp int64 }) error`: Remove a reaction from a message.
+- `PostReceipts(data struct{ ReceiptType string; Recipient string; Timestamp int64 }) error`: Send a read/viewed receipt for a message.
 
 ### Contacts
 
-- `GetContacts()`: List all contacts for the account.
-- `PostContact(data struct{ ExpirationInSeconds int; Name string; Recipient string })`: Add or update contact information.
-- `PutContactsSync()`: Sync contacts across devices.
+- `GetContacts() ([]Contact, error)`: List all contacts for the account.
+- `PostContact(data struct{ ExpirationInSeconds int; Name string; Recipient string }) ([]Contact, error)`: Add or update contact information.
+- `PutContactsSync() error`: Sync contacts across devices.
 
 ### Groups
 
-- `GetGroups()`: List all Signal groups associated with the account.
-- `PostCreateGroup(data struct{ Description string; ExpirationTime int; GroupLink string; Members []string; Name string; Permissions struct{ AddMembers string; EditGroup string } })`: Create a new group with specified members.
-- `PostGroupAdmins(groupID string, data struct{ Admins []string })`: Add admins to a group.
-- `DeleteGroupAdmins(groupID string, data struct{ Admins []string })`: Remove admins from a group.
-- `PostGroupMembers(groupID string, data struct{ Members []string })`: Add members to a group.
+- `GetGroups() ([]Group, error)`: List all Signal groups associated with the account.
+- `PostCreateGroup(data struct{ Description string; ExpirationTime int; GroupLink string; Members []string; Name string; Permissions struct{ AddMembers string; EditGroup string } }) (struct{ ID string }, error)`: Create a new group with specified members.
+- `PostGroupAdmins(groupID string, data struct{ Admins []string }) error`: Add admins to a group.
+- `DeleteGroupAdmins(groupID string, data struct{ Admins []string }) error`: Remove admins from a group.
+- `PostGroupMembers(groupID string, data struct{ Members []string }) error`: Add members to a group.
 
 ### Attachments
 
-- `GetAttachments()`: List all attachments stored in the system.
-- `GetAttachment(id string)`: Serve an attachment by its ID.
-- `DeleteAttachment(id string)`: Delete an attachment by its ID.
+- `GetAttachments() ([]string, error)`: List all attachments stored in the system.
+- `GetAttachment(id string) ([]byte, error)`: Serve an attachment by its ID.
+- `DeleteAttachment(id string) error`: Delete an attachment by its ID.
 
 ### Device Linking
 
-- `GetLinkAccountQRCode(deviceName string)`: Generate a QR code to link a new device.
+- `GetLinkAccountQRCode(deviceName string) (string, error)`: Generate a QR code to link a new device.
 
 ### Configuration & Health
 
-- `GetHealth()`: Check the health of the Signal API.
-- `GetConfiguration()`: Retrieve the current API configuration.
-- `PostConfiguration(data Configuration)`: Update the API configuration.
+- `GetHealth() (string, error)`: Check the health of the Signal API.
+- `GetConfiguration() (Configuration, error)`: Retrieve the current API configuration.
+- `PostConfiguration(data Configuration) error`: Update the API configuration.
 
 ## Related Projects
 

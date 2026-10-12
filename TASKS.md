@@ -15,4 +15,4 @@
 - [x] T3 — Added DeleteReaction to README, pushed (Lane 1, diff verified by Governor).
 - [x] T4 — README signatures fixed (Post/DeleteReaction TargetAuthor, PostContact, PostCreateGroup); api.go errorResposne → errorResponse. Build+vet rc=0 verified by Governor.
 - [x] T5 — PostGroupMembers/DeleteGroupMembers now send data (were nil). Diff + build/vet rc=0 verified by Governor; not tested against a live server.
-- [ ] Open: add return values to README bullets? (asked user)
+- [x] T6 — README: return values on all 26 method bullets (reported count); 7 spot-checked vs code by Governor. Pushed.
