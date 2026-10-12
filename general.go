@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type GetAboutResponse struct {
@@ -42,7 +44,7 @@ func GetConfiguration() (resp Configuration, err error) {
 
 // Set the REST API configuration.
 func PostConfiguration(data Configuration) (err error) {
-	_, err = post[any]("/v1/configuration", data)
+	_, err = request(fiber.MethodPost, "/v1/configuration", data)
 	return
 }
 
@@ -133,7 +135,7 @@ type SendMessageV1 struct {
 //
 // Deprecated: use PostSend.
 func PostSendV1(data SendMessageV1) (err error) {
-	_, err = post[any]("/v1/send", data)
+	_, err = request(fiber.MethodPost, "/v1/send", data)
 	return
 }
 
@@ -148,13 +150,13 @@ func GetAttachments() (attachments []string, err error) {
 //
 // Serve the attachment with the given id.
 func GetAttachment(id string) (raw []byte, err error) {
-	return getRaw(fmt.Sprintf("/v1/attachments/%s", id))
+	return getRaw(fmt.Sprintf("/v1/attachments/%s", url.PathEscape(id)))
 }
 
 // Remove attachment.
 //
 // Remove the attachment with the given id from filesystem.
 func DeleteAttachment(id string) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/attachments/%s", id), nil)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/attachments/%s", url.PathEscape(id)), nil)
 	return
 }

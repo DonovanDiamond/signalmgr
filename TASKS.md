@@ -21,5 +21,6 @@
 - [x] T7 — Code aligned with signal-cli-rest-api 0.101 swagger (orchestrator, 4 coders, ~4 min reported). Governor verified: build/vet/gofmt rc=0, tag 0.101, contacts PUT, sync POST, /v1/search/{number}, health 204, config path, api.go read in full. signaltypes field list = reported only.
 - [x] T8 — Exported APIError (status, message, account, challenge_tokens) replaces errorResponse. Diff read + build/vet rc=0 verified by Governor; non-2xx path not exercised. Pushed with T7.
 - [x] T9 — 15 endpoints wrapped + receive/groups/contacts/qrcode options (orchestrator, 3 coders). Governor verified: build/vet/gofmt rc=0; polls, remote-delete, local-data, pin paths+methods and all 7 receive params match spec.
-- [ ] T10 — url.PathEscape caller-supplied path segments; discard-body calls must not JSON-decode (Lane 1, sonnet-coder, 2026-10-12, budget 6 min). Then tag v0.3.0 + push (user pre-approved).
+- [x] T10 — PathEscape on all path segments; discard-body calls use request(). Governor verified: no [any] left, no unescaped %s path, build/vet rc=0.
+- [ ] T11 — Add api_test.go (httptest): escaped path survives fasthttp normalizing, plain-text success body OK, APIError fields; fix if needed (Lane 1, sonnet-coder, 2026-10-12, budget 6 min). Then tag v0.3.0 + push.
 - [ ] Backlog: no tests in repo.

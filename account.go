@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/DonovanDiamond/signalmgr/signaltypes"
+	"github.com/gofiber/fiber/v2"
 	"github.com/gorilla/websocket"
 )
 
@@ -37,12 +38,12 @@ type Account_Configuration struct {
 
 // List account specific settings.
 func (a *Account) GetConfiguration() (resp Account_Configuration, err error) {
-	return get[Account_Configuration](fmt.Sprintf("/v1/configuration/%s/settings", a.Number))
+	return get[Account_Configuration](fmt.Sprintf("/v1/configuration/%s/settings", url.PathEscape(a.Number)))
 }
 
 // Set account specific settings.
 func (a *Account) PostConfiguration(data Account_Configuration) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/configuration/%s/settings", a.Number), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/configuration/%s/settings", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -50,7 +51,7 @@ func (a *Account) PostConfiguration(data Account_Configuration) (err error) {
 func (a *Account) PostLinkDevice(data struct {
 	URI string `json:"uri"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/devices/%s", a.Number), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/devices/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -58,7 +59,7 @@ func (a *Account) PostLinkDevice(data struct {
 //
 // Register a phone number with the signal network.
 func (a *Account) PostRegister(captcha string, useVoice bool) error {
-	_, err := post[any](fmt.Sprintf("/v1/register/%s", a.Number), struct {
+	_, err := request(fiber.MethodPost, fmt.Sprintf("/v1/register/%s", url.PathEscape(a.Number)), struct {
 		Captcha  string `json:"captcha"`
 		UseVoice bool   `json:"use_voice"`
 	}{
@@ -72,7 +73,7 @@ func (a *Account) PostRegister(captcha string, useVoice bool) error {
 //
 // Verify a registered phone number with the signal network.
 func (a *Account) PostRegisterVerify(token string, pin string) error {
-	_, err := post[any](fmt.Sprintf("/v1/register/%s/verify/%s", a.Number, token), struct {
+	_, err := request(fiber.MethodPost, fmt.Sprintf("/v1/register/%s/verify/%s", url.PathEscape(a.Number), url.PathEscape(token)), struct {
 		PIN string `json:"pin"`
 	}{
 		PIN: pin,
@@ -87,7 +88,7 @@ func (a *Account) PostUnregister(data struct {
 	DeleteAccount   bool `json:"delete_account"`
 	DeleteLocalData bool `json:"delete_local_data"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/unregister/%s", a.Number), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/unregister/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -98,7 +99,7 @@ func (a *Account) PostRateLimitChallenge(data struct {
 	Captcha        string `json:"captcha"`
 	ChallengeToken string `json:"challenge_token"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/accounts/%s/rate-limit-challenge", a.Number), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/accounts/%s/rate-limit-challenge", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -109,7 +110,7 @@ func (a *Account) PutSettings(data struct {
 	DiscoverableByNumber *bool `json:"discoverable_by_number,omitempty"`
 	ShareNumber          *bool `json:"share_number,omitempty"`
 }) (err error) {
-	_, err = put[any](fmt.Sprintf("/v1/accounts/%s/settings", a.Number), data)
+	_, err = request(fiber.MethodPut, fmt.Sprintf("/v1/accounts/%s/settings", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -124,14 +125,14 @@ type Account_PostUsernameResponse struct {
 func (a *Account) PostUsername(data struct {
 	Username string `json:"username"`
 }) (resp Account_PostUsernameResponse, err error) {
-	return post[Account_PostUsernameResponse](fmt.Sprintf("/v1/accounts/%s/username", a.Number), data)
+	return post[Account_PostUsernameResponse](fmt.Sprintf("/v1/accounts/%s/username", url.PathEscape(a.Number)), data)
 }
 
 // Remove a username.
 //
 // Delete the username associated with this account.
 func (a *Account) DeleteUsername() (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/accounts/%s/username", a.Number), nil)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/accounts/%s/username", url.PathEscape(a.Number)), nil)
 	return
 }
 
@@ -166,7 +167,7 @@ func (a *Account) GetGroups(opts GetGroupsOptions) (groups []Group, err error) {
 	if opts.Expand {
 		q.Set("expand", "true")
 	}
-	return get[[]Group](withQuery(fmt.Sprintf("/v1/groups/%s", a.Number), q))
+	return get[[]Group](withQuery(fmt.Sprintf("/v1/groups/%s", url.PathEscape(a.Number)), q))
 }
 
 // Create a new Signal Group with the specified members.
@@ -182,7 +183,7 @@ func (a *Account) PostCreateGroup(data struct {
 }, err error) {
 	return post[struct {
 		ID string `json:"id"`
-	}](fmt.Sprintf("/v1/groups/%s", a.Number), data)
+	}](fmt.Sprintf("/v1/groups/%s", url.PathEscape(a.Number)), data)
 }
 
 type GetGroupOptions struct {
@@ -195,7 +196,7 @@ func (a *Account) GetGroup(groupID string, opts GetGroupOptions) (group Group, e
 	if opts.Expand {
 		q.Set("expand", "true")
 	}
-	return get[Group](withQuery(fmt.Sprintf("/v1/groups/%s/%s", a.Number, groupID), q))
+	return get[Group](withQuery(fmt.Sprintf("/v1/groups/%s/%s", url.PathEscape(a.Number), url.PathEscape(groupID)), q))
 }
 
 // Update the state of a Signal Group.
@@ -207,13 +208,13 @@ func (a *Account) PutGroupSettings(groupID string, data struct {
 	Name           *string           `json:"name,omitempty"`
 	Permissions    *GroupPermissions `json:"permissions,omitempty"`
 }) (err error) {
-	_, err = put[any](fmt.Sprintf("/v1/groups/%s/%s", a.Number, groupID), data)
+	_, err = request(fiber.MethodPut, fmt.Sprintf("/v1/groups/%s/%s", url.PathEscape(a.Number), url.PathEscape(groupID)), data)
 	return
 }
 
 // Delete the specified Signal Group.
 func (a *Account) DeleteGroup(groupID string) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/groups/%s/%s", a.Number, groupID), nil)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/groups/%s/%s", url.PathEscape(a.Number), url.PathEscape(groupID)), nil)
 	return
 }
 
@@ -221,7 +222,7 @@ func (a *Account) DeleteGroup(groupID string) (err error) {
 func (a *Account) PostGroupAdmins(groupID string, data struct {
 	Admins []string `json:"admins"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/groups/%s/%s/admins", a.Number, groupID), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/groups/%s/%s/admins", url.PathEscape(a.Number), url.PathEscape(groupID)), data)
 	return
 }
 
@@ -229,19 +230,19 @@ func (a *Account) PostGroupAdmins(groupID string, data struct {
 func (a *Account) DeleteGroupAdmins(groupID string, data struct {
 	Admins []string `json:"admins"`
 }) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/groups/%s/%s/admins", a.Number, groupID), data)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/groups/%s/%s/admins", url.PathEscape(a.Number), url.PathEscape(groupID)), data)
 	return
 }
 
 // Block the specified Signal Group.
 func (a *Account) PostBlockGroup(groupID string) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/groups/%s/%s/block", a.Number, groupID), nil)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/groups/%s/%s/block", url.PathEscape(a.Number), url.PathEscape(groupID)), nil)
 	return
 }
 
 // Join the specified Signal Group.
 func (a *Account) PostJoinGroup(groupID string) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/groups/%s/%s/join", a.Number, groupID), nil)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/groups/%s/%s/join", url.PathEscape(a.Number), url.PathEscape(groupID)), nil)
 	return
 }
 
@@ -249,7 +250,7 @@ func (a *Account) PostJoinGroup(groupID string) (err error) {
 func (a *Account) PostGroupMembers(groupID string, data struct {
 	Members []string `json:"members"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/groups/%s/%s/members", a.Number, groupID), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/groups/%s/%s/members", url.PathEscape(a.Number), url.PathEscape(groupID)), data)
 	return
 }
 
@@ -257,13 +258,13 @@ func (a *Account) PostGroupMembers(groupID string, data struct {
 func (a *Account) DeleteGroupMembers(groupID string, data struct {
 	Members []string `json:"members"`
 }) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/groups/%s/%s/members", a.Number, groupID), data)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/groups/%s/%s/members", url.PathEscape(a.Number), url.PathEscape(groupID)), data)
 	return
 }
 
 // Quit the specified Signal Group.
 func (a *Account) PostQuitGroup(groupID string) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/groups/%s/%s/quit", a.Number, groupID), nil)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/groups/%s/%s/quit", url.PathEscape(a.Number), url.PathEscape(groupID)), nil)
 	return
 }
 
@@ -309,7 +310,7 @@ func (a *Account) GetMessages(opts GetMessagesOptions) (messages []MessageRespon
 	if opts.SendReadReceipts {
 		q.Set("send_read_receipts", "true")
 	}
-	return get[[]MessageResponse](withQuery(fmt.Sprintf("/v1/receive/%s", a.Number), q))
+	return get[[]MessageResponse](withQuery(fmt.Sprintf("/v1/receive/%s", url.PathEscape(a.Number)), q))
 }
 
 // Opens a socket to receive Signal Messages and sends them to the `messages` channel.
@@ -324,7 +325,7 @@ func (a *Account) GetMessagesSocket(messages chan<- MessageResponse) (err error)
 	} else if strings.HasPrefix(baseURL, "http://") {
 		baseURL = "ws://" + strings.TrimPrefix(baseURL, "http://")
 	}
-	fullURL := fmt.Sprintf("%s/v1/receive/%s", baseURL, a.Number)
+	fullURL := fmt.Sprintf("%s/v1/receive/%s", baseURL, url.PathEscape(a.Number))
 
 	c, _, err := websocket.DefaultDialer.Dial(fullURL, nil)
 	if err != nil {
@@ -356,7 +357,7 @@ func (a *Account) GetMessagesSocket(messages chan<- MessageResponse) (err error)
 func (a *Account) PutTypingIndicator(data struct {
 	Recipient string `json:"recipient"`
 }) (err error) {
-	_, err = put[any](fmt.Sprintf("/v1/typing-indicator/%s", a.Number), data)
+	_, err = request(fiber.MethodPut, fmt.Sprintf("/v1/typing-indicator/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -364,7 +365,7 @@ func (a *Account) PutTypingIndicator(data struct {
 func (a *Account) DeleteTypingIndicator(data struct {
 	Recipient string `json:"recipient"`
 }) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/typing-indicator/%s", a.Number), data)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/typing-indicator/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -376,7 +377,7 @@ func (a *Account) PutProfile(data struct {
 	Base64Avatar string `json:"base64_avatar,omitempty"`
 	Name         string `json:"name"`
 }) (err error) {
-	_, err = put[any](fmt.Sprintf("/v1/profiles/%s", a.Number), data)
+	_, err = request(fiber.MethodPut, fmt.Sprintf("/v1/profiles/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -391,7 +392,7 @@ type Identity struct {
 
 // List all identities for the given number.
 func (a *Account) GetIdentities() (identities []Identity, err error) {
-	return get[[]Identity](fmt.Sprintf("/v1/identities/%s", a.Number))
+	return get[[]Identity](fmt.Sprintf("/v1/identities/%s", url.PathEscape(a.Number)))
 }
 
 // Trust an identity. When 'trust_all_known_keys' is set to 'true', all known keys of this user are trusted. **This is only recommended for testing.**
@@ -399,7 +400,7 @@ func (a *Account) PutTrustIdentity(numberToTrust string, data struct {
 	TrustAllKnownKeys    bool   `json:"trust_all_known_keys"`
 	VerifiedSafetyNumber string `json:"verified_safety_number"`
 }) (err error) {
-	_, err = put[any](fmt.Sprintf("/v1/identities/%s/trust/%s", a.Number, numberToTrust), data)
+	_, err = request(fiber.MethodPut, fmt.Sprintf("/v1/identities/%s/trust/%s", url.PathEscape(a.Number), url.PathEscape(numberToTrust)), data)
 	return
 }
 
@@ -412,7 +413,7 @@ func (a *Account) PostReaction(data struct {
 	TargetAuthor string `json:"target_author"`
 	Timestamp    int64  `json:"timestamp"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/reactions/%s", a.Number), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/reactions/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -423,7 +424,7 @@ func (a *Account) DeleteReaction(data struct {
 	TargetAuthor string `json:"target_author"`
 	Timestamp    int64  `json:"timestamp"`
 }) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/reactions/%s", a.Number), data)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/reactions/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -435,7 +436,7 @@ func (a *Account) PostReceipts(data struct {
 	Recipient   string `json:"recipient"`
 	Timestamp   int64  `json:"timestamp"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/receipts/%s", a.Number), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/receipts/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -449,7 +450,7 @@ type StickerPack struct {
 
 // List Installed Sticker Packs.
 func (a *Account) GetStickerPacks() (packs []StickerPack, err error) {
-	return get[[]StickerPack](fmt.Sprintf("/v1/sticker-packs/%s", a.Number))
+	return get[[]StickerPack](fmt.Sprintf("/v1/sticker-packs/%s", url.PathEscape(a.Number)))
 }
 
 // Add Sticker Pack.
@@ -459,7 +460,7 @@ func (a *Account) PostStickerPack(data struct {
 	PackID  string `json:"pack_id"`
 	PackKey string `json:"pack_key"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/sticker-packs/%s", a.Number), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/sticker-packs/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -504,7 +505,7 @@ func (a *Account) GetContacts(opts GetContactsOptions) (contacts []Contact, err 
 	if opts.AllRecipients {
 		q.Set("all_recipients", "true")
 	}
-	return get[[]Contact](withQuery(fmt.Sprintf("/v1/contacts/%s", a.Number), q))
+	return get[[]Contact](withQuery(fmt.Sprintf("/v1/contacts/%s", url.PathEscape(a.Number)), q))
 }
 
 type GetContactOptions struct {
@@ -519,12 +520,12 @@ func (a *Account) GetContact(uuid string, opts GetContactOptions) (contact Conta
 	if opts.AllRecipients {
 		q.Set("all_recipients", "true")
 	}
-	return get[Contact](withQuery(fmt.Sprintf("/v1/contacts/%s/%s", a.Number, uuid), q))
+	return get[Contact](withQuery(fmt.Sprintf("/v1/contacts/%s/%s", url.PathEscape(a.Number), url.PathEscape(uuid)), q))
 }
 
 // Returns the avatar of a contact.
 func (a *Account) GetContactAvatar(uuid string) (avatar []byte, err error) {
-	return getRaw(fmt.Sprintf("/v1/contacts/%s/%s/avatar", a.Number, uuid))
+	return getRaw(fmt.Sprintf("/v1/contacts/%s/%s/avatar", url.PathEscape(a.Number), url.PathEscape(uuid)))
 }
 
 // Updates the info associated to a number on the contact list. If the contact doesn’t exist yet, it will be added.
@@ -533,13 +534,13 @@ func (a *Account) PutContact(data struct {
 	Name                string `json:"name,omitempty"`
 	Recipient           string `json:"recipient"`
 }) (err error) {
-	_, err = put[any](fmt.Sprintf("/v1/contacts/%s", a.Number), data)
+	_, err = request(fiber.MethodPut, fmt.Sprintf("/v1/contacts/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
 // Send a synchronization message with the local contacts list to all linked devices. This command should only be used if this is the primary device.
 func (a *Account) PostContactsSync() (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/contacts/%s/sync", a.Number), nil)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/contacts/%s/sync", url.PathEscape(a.Number)), nil)
 	return
 }
 
@@ -551,7 +552,7 @@ type SearchResult struct {
 // Check if one or more phone numbers are registered with the Signal Service.
 func (a *Account) GetSearch(numbers []string) (results []SearchResult, err error) {
 	q := url.Values{"numbers": numbers}
-	return get[[]SearchResult](fmt.Sprintf("/v1/search/%s?%s", a.Number, q.Encode()))
+	return get[[]SearchResult](fmt.Sprintf("/v1/search/%s?%s", url.PathEscape(a.Number), q.Encode()))
 }
 
 // Set Pin.
@@ -560,7 +561,7 @@ func (a *Account) GetSearch(numbers []string) (results []SearchResult, err error
 func (a *Account) PostPin(data struct {
 	Pin string `json:"pin"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/accounts/%s/pin", a.Number), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/accounts/%s/pin", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -568,7 +569,7 @@ func (a *Account) PostPin(data struct {
 //
 // Removes a Signal Pin.
 func (a *Account) DeletePin() (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/accounts/%s/pin", a.Number), nil)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/accounts/%s/pin", url.PathEscape(a.Number)), nil)
 	return
 }
 
@@ -583,14 +584,14 @@ type Device struct {
 //
 // List linked devices associated to this device.
 func (a *Account) GetDevices() (devices []Device, err error) {
-	return get[[]Device](fmt.Sprintf("/v1/devices/%s", a.Number))
+	return get[[]Device](fmt.Sprintf("/v1/devices/%s", url.PathEscape(a.Number)))
 }
 
 // Remove linked device.
 //
 // Remove a linked device from the primary account.
 func (a *Account) DeleteDevice(deviceID int64) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/devices/%s/%d", a.Number, deviceID), nil)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/devices/%s/%d", url.PathEscape(a.Number), deviceID), nil)
 	return
 }
 
@@ -600,13 +601,13 @@ func (a *Account) DeleteDevice(deviceID int64) (err error) {
 func (a *Account) DeleteLocalData(data struct {
 	IgnoreRegistered bool `json:"ignore_registered,omitempty"`
 }) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/devices/%s/local-data", a.Number), data)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/devices/%s/local-data", url.PathEscape(a.Number)), data)
 	return
 }
 
 // Returns the avatar of a Signal Group.
 func (a *Account) GetGroupAvatar(groupID string) (avatar []byte, err error) {
-	return getRaw(fmt.Sprintf("/v1/groups/%s/%s/avatar", a.Number, groupID))
+	return getRaw(fmt.Sprintf("/v1/groups/%s/%s/avatar", url.PathEscape(a.Number), url.PathEscape(groupID)))
 }
 
 // Pin a message in a Signal Group.
@@ -615,7 +616,7 @@ func (a *Account) PostGroupPinMessage(groupID string, data struct {
 	TargetAuthor string `json:"target_author"`
 	Timestamp    int64  `json:"timestamp"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/groups/%s/%s/pin-message", a.Number, groupID), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/groups/%s/%s/pin-message", url.PathEscape(a.Number), url.PathEscape(groupID)), data)
 	return
 }
 
@@ -624,7 +625,7 @@ func (a *Account) DeleteGroupPinMessage(groupID string, data struct {
 	TargetAuthor string `json:"target_author"`
 	Timestamp    int64  `json:"timestamp"`
 }) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/groups/%s/%s/pin-message", a.Number, groupID), data)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/groups/%s/%s/pin-message", url.PathEscape(a.Number), url.PathEscape(groupID)), data)
 	return
 }
 
@@ -639,7 +640,7 @@ func (a *Account) PostPoll(data struct {
 	Question                string   `json:"question"`
 	Recipient               string   `json:"recipient"`
 }) (resp Account_PostPollResponse, err error) {
-	return post[Account_PostPollResponse](fmt.Sprintf("/v1/polls/%s", a.Number), data)
+	return post[Account_PostPollResponse](fmt.Sprintf("/v1/polls/%s", url.PathEscape(a.Number)), data)
 }
 
 // Close a poll.
@@ -647,7 +648,7 @@ func (a *Account) DeletePoll(data struct {
 	PollTimestamp string `json:"poll_timestamp"`
 	Recipient     string `json:"recipient"`
 }) (err error) {
-	_, err = delete[any](fmt.Sprintf("/v1/polls/%s", a.Number), data)
+	_, err = request(fiber.MethodDelete, fmt.Sprintf("/v1/polls/%s", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -658,7 +659,7 @@ func (a *Account) PostPollVote(data struct {
 	Recipient       string `json:"recipient"`
 	SelectedAnswers []int  `json:"selected_answers"`
 }) (err error) {
-	_, err = post[any](fmt.Sprintf("/v1/polls/%s/vote", a.Number), data)
+	_, err = request(fiber.MethodPost, fmt.Sprintf("/v1/polls/%s/vote", url.PathEscape(a.Number)), data)
 	return
 }
 
@@ -671,5 +672,5 @@ func (a *Account) DeleteRemoteMessage(data struct {
 	Recipient string `json:"recipient"`
 	Timestamp int64  `json:"timestamp"`
 }) (resp Account_DeleteRemoteMessageResponse, err error) {
-	return delete[Account_DeleteRemoteMessageResponse](fmt.Sprintf("/v1/remote-delete/%s", a.Number), data)
+	return delete[Account_DeleteRemoteMessageResponse](fmt.Sprintf("/v1/remote-delete/%s", url.PathEscape(a.Number)), data)
 }
