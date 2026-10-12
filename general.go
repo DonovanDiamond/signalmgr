@@ -1,6 +1,10 @@
 package signalmgr
 
-import "fmt"
+import (
+	"fmt"
+	"net/url"
+	"strconv"
+)
 
 type GetAboutResponse struct {
 	Build        int                 `json:"build"`
@@ -42,11 +46,29 @@ func PostConfiguration(data Configuration) (err error) {
 	return
 }
 
+type GetLinkAccountQRCodeOptions struct {
+	QRCodeVersion int
+}
+
 // Link device and generate QR code.
 //
 // Returns the QR code as a PNG image.
-func GetLinkAccountQRCode(deviceName string) (png []byte, err error) {
-	return getRaw("/v1/qrcodelink?" + encodeParams(params{"device_name": deviceName}))
+func GetLinkAccountQRCode(deviceName string, opts GetLinkAccountQRCodeOptions) (png []byte, err error) {
+	q := url.Values{"device_name": {deviceName}}
+	if opts.QRCodeVersion > 0 {
+		q.Set("qrcode_version", strconv.Itoa(opts.QRCodeVersion))
+	}
+	return getRaw(withQuery("/v1/qrcodelink", q))
+}
+
+// Get raw device link URI.
+//
+// Generate the deviceLinkUri string for linking without scanning a QR code.
+func GetLinkAccountURI(deviceName string) (uri string, err error) {
+	resp, err := get[struct {
+		DeviceLinkURI string `json:"device_link_uri"`
+	}](withQuery("/v1/qrcodelink/raw", url.Values{"device_name": {deviceName}}))
+	return resp.DeviceLinkURI, err
 }
 
 type SendMessageV2_MessageMention struct {
@@ -97,6 +119,22 @@ type SendMessageResponse struct {
 // Send a signal message. Set the text_mode to 'styled' in case you want to add formatting to your text message. Styling Options: *italic text*, **bold text**, ~strikethrough text~.
 func PostSend(data SendMessageV2) (resp SendMessageResponse, err error) {
 	return post[SendMessageResponse]("/v2/send", data)
+}
+
+type SendMessageV1 struct {
+	Base64Attachment string   `json:"base64_attachment,omitempty"`
+	IsGroup          bool     `json:"is_group,omitempty"`
+	Message          string   `json:"message"`
+	Number           string   `json:"number"`
+	Recipients       []string `json:"recipients"`
+}
+
+// Send a signal message.
+//
+// Deprecated: use PostSend.
+func PostSendV1(data SendMessageV1) (err error) {
+	_, err = post[any]("/v1/send", data)
+	return
 }
 
 // List all attachments.

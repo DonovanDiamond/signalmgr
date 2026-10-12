@@ -1,39 +1,47 @@
 # Code Blocks Reference
 
-`(a)` = method on `*Account`. Line numbers are from the working tree after 0.101 alignment.
+`(a)` = method on `*Account`. Line numbers are the start line of the first and last item listed, from the working tree.
 
 ## api.go — HTTP core (private)
 - `API_URL` — api.go:13 — base URL var, default `http://127.0.0.1:8080`
 - `APIError` — api.go:17 — exported non-2xx error (status, message, account, challenge_tokens); use errors.As
-- `encodeParams` — api.go:38 — query string builder
-- `methods` — api.go:46 — HTTP verb to fiber agent constructor map
-- `request` — api.go:57 — runs the fiber agent, maps API errors, returns raw body
-- `requestJSON[T]` — api.go:83 — `request` + JSON decode into `T`
-- `getRaw`, `get[T]`, `post[T]`, `put[T]`, `delete[T]` — api.go:95–123 — typed request helpers
+- `withQuery` — api.go:37 — appends `url.Values` as a query string to a path; unchanged when empty
+- `methods` — api.go:44 — HTTP verb to fiber agent constructor map
+- `request` — api.go:55 — runs the fiber agent, maps API errors, returns raw body
+- `requestJSON[T]` — api.go:81 — `request` + JSON decode into `T`
+- `getRaw`, `get[T]`, `post[T]`, `put[T]`, `delete[T]` — api.go:93–121 — typed request helpers (`getRaw` returns raw bytes for binary responses)
 
 ## general.go — package-level calls
-- `GetAboutResponse`, `GetAbout` — general.go:5–16 — API info
-- `GetHealth` — general.go:23 — health check
-- `Configuration`, `GetConfiguration`, `PostConfiguration` — general.go:28–40 — global API config
-- `GetLinkAccountQRCode` — general.go:48 — device-link QR (PNG bytes)
-- `SendMessageV2_MessageMention`, `SendMessageV2_LinkPreview`, `SendMessageV2`, `SendMessageResponse`, `PostSend` — general.go:52–98 — send message
-- `GetAttachments`, `GetAttachment`, `DeleteAttachment` — general.go:105–119 — attachments
+- `GetAboutResponse`, `GetAbout` — general.go:9–20 — API info
+- `GetHealth` — general.go:27 — health check
+- `Configuration`, `GetConfiguration`, `PostConfiguration` — general.go:32–44 — global API config
+- `GetLinkAccountQRCodeOptions`, `GetLinkAccountQRCode` — general.go:49–56 — device-link QR (PNG bytes)
+- `GetLinkAccountURI` — general.go:67 — device-link URI string
+- `SendMessageV2_MessageMention`, `SendMessageV2_LinkPreview`, `SendMessageV2`, `SendMessageResponse`, `PostSend` — general.go:74–120 — send message
+- `SendMessageV1`, `PostSendV1` — general.go:124–135 — legacy v1 send
+- `GetAttachments`, `GetAttachment`, `DeleteAttachment` — general.go:143–157 — attachments
 
 ## account.go — per-account calls
-- `Account`, `GetAccounts` — account.go:13–20 — account type + list
-- `Account_Configuration`, (a) `GetConfiguration`, `PostConfiguration` — account.go:33–43 — account config
-- (a) `PostLinkDevice`, `PostRegister`, `PostRegisterVerify`, `PostUnregister`, `PostRateLimitChallenge`, `PutSettings` — account.go:49–107 — registration/settings
-- `Account_PostUsernameResponse`, (a) `PostUsername`, `DeleteUsername` — account.go:115–132 — username
-- `GroupPermissions`, `Group`, (a) `GetGroups`, `PostCreateGroup`, `GetGroup`, `PutGroupSettings`, `DeleteGroup` — account.go:137–198 — groups
-- (a) `PostGroupAdmins`, `DeleteGroupAdmins`, `PostBlockGroup`, `PostJoinGroup`, `PostGroupMembers`, `DeleteGroupMembers`, `PostQuitGroup` — account.go:204–248 — group membership
-- `MessageResponse`, (a) `GetMessages` — account.go:253–262 — receive (REST, normal/native mode)
-- (a) `GetMessagesSocket` — account.go:271 — receive (websocket, json-rpc mode)
-- (a) `PutTypingIndicator`, `DeleteTypingIndicator`, `PutProfile` — account.go:307–325 — typing/profile
-- `Identity`, (a) `GetIdentities`, `PutTrustIdentity` — account.go:334–349 — identities
-- (a) `PostReaction`, `DeleteReaction`, `PostReceipts` — account.go:360–384 — reactions/receipts
-- `StickerPack`, (a) `GetStickerPacks`, `PostStickerPack` — account.go:393–409 — stickers
-- `Contact_Nickname`, `Contact_Profile`, `Contact`, (a) `GetContacts`, `PutContact`, `PostContactsSync` — account.go:417–464 — contacts
-- `SearchResult`, (a) `GetSearch` — account.go:469–475 — check numbers are registered
+- `Account`, `GetAccounts` — account.go:14–21 — account type + list
+- `Account_Configuration`, (a) `GetConfiguration`, `PostConfiguration` — account.go:34–44 — account config
+- (a) `PostLinkDevice`, `PostRegister`, `PostRegisterVerify`, `PostUnregister`, `PostRateLimitChallenge`, `PutSettings` — account.go:50–108 — registration/settings
+- `Account_PostUsernameResponse`, (a) `PostUsername`, `DeleteUsername` — account.go:116–133 — username
+- `GroupPermissions`, `Group`, `GetGroupsOptions`, (a) `GetGroups`, `PostCreateGroup`, `GetGroupOptions`, (a) `GetGroup`, `PutGroupSettings`, `DeleteGroup` — account.go:138–215 — groups
+- (a) `PostGroupAdmins`, `DeleteGroupAdmins`, `PostBlockGroup`, `PostJoinGroup`, `PostGroupMembers`, `DeleteGroupMembers`, `PostQuitGroup` — account.go:221–265 — group membership
+- `MessageResponse`, `GetMessagesOptions`, (a) `GetMessages` — account.go:270–289 — receive (REST, normal/native mode)
+- (a) `GetMessagesSocket` — account.go:320 — receive (websocket, json-rpc mode)
+- (a) `PutTypingIndicator`, `DeleteTypingIndicator`, `PutProfile` — account.go:356–374 — typing/profile
+- `Identity`, (a) `GetIdentities`, `PutTrustIdentity` — account.go:383–398 — identities
+- (a) `PostReaction`, `DeleteReaction`, `PostReceipts` — account.go:409–433 — reactions/receipts
+- `StickerPack`, (a) `GetStickerPacks`, `PostStickerPack` — account.go:442–458 — stickers
+- `Contact_Nickname`, `Contact_Profile`, `Contact`, `GetContactsOptions`, (a) `GetContacts`, `GetContactOptions`, (a) `GetContact`, `GetContactAvatar`, `PutContact`, `PostContactsSync` — account.go:466–541 — contacts
+- `SearchResult`, (a) `GetSearch` — account.go:546–552 — check numbers are registered
+- (a) `PostPin`, `DeletePin` — account.go:560–570 — registration lock PIN
+- `Device`, (a) `GetDevices`, `DeleteDevice`, `DeleteLocalData` — account.go:575–600 — linked devices, local data wipe
+- (a) `GetGroupAvatar` — account.go:608 — group avatar (raw bytes)
+- (a) `PostGroupPinMessage`, `DeleteGroupPinMessage` — account.go:613–623 — pin/unpin group message
+- `Account_PostPollResponse`, (a) `PostPoll`, `DeletePoll`, `PostPollVote` — account.go:631–655 — polls
+- `Account_DeleteRemoteMessageResponse`, (a) `DeleteRemoteMessage` — account.go:665–670 — delete sent message for everyone
 
 ## signaltypes/types.go
 - 43 payload structs for received envelopes (`MessageEnvelope`, `DataMessage`, `SyncMessage`, `CallMessage`, `Payment`, …) — no funcs

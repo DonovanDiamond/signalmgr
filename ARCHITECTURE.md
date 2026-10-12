@@ -24,3 +24,5 @@ Receiving messages:
 - Method names mirror HTTP verb + resource (`PostCreateGroup`, `DeleteGroupMembers`).
 - Request bodies are often anonymous structs in the method signature.
 - Per-account types are prefixed `Account_` (e.g. `Account_Configuration`).
+- Optional query params: one `<Method>Options` struct per call (e.g. `GetGroupsOptions`); zero value = omitted. Built with `url.Values` and appended via `withQuery`.
+- Binary responses (avatars, QR code, attachments) use `getRaw` and return `[]byte`.

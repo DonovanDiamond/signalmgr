@@ -105,7 +105,7 @@ func main() {
 	fmt.Print("Send a message to this number and press enter to receive it:")
 	scanner.Scan()
 
-	messages, err := account.GetMessages()
+	messages, err := account.GetMessages(signalmgr.GetMessagesOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,14 +126,15 @@ Each method is based on the methods in [signal-cli-rest-api swagger docs](https:
 - `GetHealth() error`: Check the health of the Signal API.
 - `GetConfiguration() (Configuration, error)`: Retrieve the current API configuration.
 - `PostConfiguration(data Configuration) error`: Update the API configuration.
-- `GetLinkAccountQRCode(deviceName string) ([]byte, error)`: Generate a QR code (PNG) to link a new device.
+- `GetLinkAccountQRCode(deviceName string, opts GetLinkAccountQRCodeOptions) ([]byte, error)`: Generate a QR code (PNG) to link a new device. `opts.QRCodeVersion` 0 uses the server default.
+- `GetLinkAccountURI(deviceName string) (string, error)`: Get the raw device-link URI.
+- `PostSendV1(data SendMessageV1) error`: Deprecated v1 send, use `PostSend`.
 
 ### Account Management
 
 - `GetAccounts() ([]Account, error)`: Lists all Signal accounts linked to the service.
 - (a) `GetConfiguration() (Account_Configuration, error)`: Retrieve the account configuration.
 - (a) `PostConfiguration(data Account_Configuration) error`: Update the account configuration.
-- (a) `PostLinkDevice(data struct{ URI string }) error`: Link another device to this account.
 - (a) `PostRegister(captcha string, useVoice bool) error`: Register a phone number with the Signal network.
 - (a) `PostRegisterVerify(token string, pin string) error`: Verify a registered phone number.
 - (a) `PostUnregister(data struct{ DeleteAccount bool; DeleteLocalData bool }) error`: Unregister a phone number and optionally delete its data.
@@ -142,38 +143,59 @@ Each method is based on the methods in [signal-cli-rest-api swagger docs](https:
 - (a) `PostUsername(data struct{ Username string }) (Account_PostUsernameResponse, error)`: Set a username for the account.
 - (a) `DeleteUsername() error`: Remove the username.
 - (a) `PutProfile(data struct{ About string; Base64Avatar string; Name string }) error`: Update the profile name, about text and avatar.
+- (a) `PostPin(data struct{ Pin string }) error`: Set a registration lock PIN.
+- (a) `DeletePin() error`: Remove the registration lock PIN.
 - (a) `GetIdentities() ([]Identity, error)`: List known identities.
 - (a) `PutTrustIdentity(numberToTrust string, data struct{ TrustAllKnownKeys bool; VerifiedSafetyNumber string }) error`: Trust an identity.
+
+### Devices
+
+- (a) `GetDevices() ([]Device, error)`: List devices linked to the account.
+- (a) `PostLinkDevice(data struct{ URI string }) error`: Link another device to this account.
+- (a) `DeleteDevice(deviceID int64) error`: Unlink a device.
+- (a) `DeleteLocalData(data struct{ IgnoreRegistered bool }) error`: Delete the locally stored account data.
 
 ### Messaging
 
 - `PostSend(data SendMessageV2) (SendMessageResponse, error)`: Send a message (supports text, mentions, attachments, etc.).
-- (a) `GetMessages() ([]MessageResponse, error)`: Receive Signal Messages, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `normal` or `native` mode.
+- (a) `GetMessages(opts GetMessagesOptions) ([]MessageResponse, error)`: Receive Signal Messages, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `normal` or `native` mode.
 - (a) `GetMessagesSocket(messages chan<- MessageResponse) error`: Opens a socket to receive Signal Messages and sends them to the `messages` channel, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `json-rpc` mode.
 - (a) `PostReaction(data struct{ Reaction string; Recipient string; TargetAuthor string; Timestamp int64 }) error`: Send a reaction to a message.
 - (a) `DeleteReaction(data struct{ Reaction string; Recipient string; TargetAuthor string; Timestamp int64 }) error`: Remove a reaction from a message.
 - (a) `PostReceipts(data struct{ ReceiptType string; Recipient string; Timestamp int64 }) error`: Send a read/viewed receipt for a message.
+- (a) `DeleteRemoteMessage(data struct{ Recipient string; Timestamp int64 }) (Account_DeleteRemoteMessageResponse, error)`: Remote-delete a sent message.
 - (a) `PutTypingIndicator(data struct{ Recipient string }) error`: Show the typing indicator.
 - (a) `DeleteTypingIndicator(data struct{ Recipient string }) error`: Hide the typing indicator.
 
+### Polls
+
+- (a) `PostPoll(data struct{ AllowMultipleSelections *bool; Answers []string; Question string; Recipient string }) (Account_PostPollResponse, error)`: Create a poll.
+- (a) `DeletePoll(data struct{ PollTimestamp string; Recipient string }) error`: Close a poll.
+- (a) `PostPollVote(data struct{ PollAuthor string; PollTimestamp string; Recipient string; SelectedAnswers []int }) error`: Vote in a poll.
+
 ### Contacts
 
-- (a) `GetContacts() ([]Contact, error)`: List all contacts for the account.
+- (a) `GetContacts(opts GetContactsOptions) ([]Contact, error)`: List all contacts for the account. `opts.AllRecipients` includes all known recipients.
+- (a) `GetContact(uuid string, opts GetContactOptions) (Contact, error)`: Get a specific contact.
+- (a) `GetContactAvatar(uuid string) ([]byte, error)`: Get a contact's avatar.
 - (a) `PutContact(data struct{ ExpirationInSeconds int; Name string; Recipient string }) error`: Add or update contact information.
 - (a) `PostContactsSync() error`: Sync contacts across devices.
 - (a) `GetSearch(numbers []string) ([]SearchResult, error)`: Check whether phone numbers are registered with Signal.
 
 ### Groups
 
-- (a) `GetGroups() ([]Group, error)`: List all Signal groups associated with the account.
+- (a) `GetGroups(opts GetGroupsOptions) ([]Group, error)`: List all Signal groups associated with the account. `opts.Expand` returns expanded group details.
 - (a) `PostCreateGroup(data struct{ Description string; ExpirationTime int; GroupLink string; Members []string; Name string; Permissions *GroupPermissions }) (struct{ ID string }, error)`: Create a new group with specified members.
-- (a) `GetGroup(groupID string) (Group, error)`: Get a specific group.
+- (a) `GetGroup(groupID string, opts GetGroupOptions) (Group, error)`: Get a specific group. `opts.Expand` returns expanded group details.
+- (a) `GetGroupAvatar(groupID string) ([]byte, error)`: Get a group's avatar.
 - (a) `PutGroupSettings(groupID string, data struct{ Base64Avatar *string; Description *string; ExpirationTime *int; GroupLink *string; Name *string; Permissions *GroupPermissions }) error`: Update a group.
 - (a) `DeleteGroup(groupID string) error`: Delete a group.
 - (a) `PostGroupAdmins(groupID string, data struct{ Admins []string }) error`: Add admins to a group.
 - (a) `DeleteGroupAdmins(groupID string, data struct{ Admins []string }) error`: Remove admins from a group.
 - (a) `PostGroupMembers(groupID string, data struct{ Members []string }) error`: Add members to a group.
 - (a) `DeleteGroupMembers(groupID string, data struct{ Members []string }) error`: Remove members from a group.
+- (a) `PostGroupPinMessage(groupID string, data struct{ Duration *int64; TargetAuthor string; Timestamp int64 }) error`: Pin a message in a group.
+- (a) `DeleteGroupPinMessage(groupID string, data struct{ TargetAuthor string; Timestamp int64 }) error`: Unpin a message in a group.
 - (a) `PostBlockGroup(groupID string) error`: Block a group.
 - (a) `PostJoinGroup(groupID string) error`: Join a group.
 - (a) `PostQuitGroup(groupID string) error`: Quit a group.

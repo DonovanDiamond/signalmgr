@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/DonovanDiamond/signalmgr/signaltypes"
@@ -155,9 +156,17 @@ type Group struct {
 	PendingRequests []string         `json:"pending_requests"`
 }
 
+type GetGroupsOptions struct {
+	Expand bool
+}
+
 // List all Signal Groups.
-func (a *Account) GetGroups() (groups []Group, err error) {
-	return get[[]Group](fmt.Sprintf("/v1/groups/%s", a.Number))
+func (a *Account) GetGroups(opts GetGroupsOptions) (groups []Group, err error) {
+	q := url.Values{}
+	if opts.Expand {
+		q.Set("expand", "true")
+	}
+	return get[[]Group](withQuery(fmt.Sprintf("/v1/groups/%s", a.Number), q))
 }
 
 // Create a new Signal Group with the specified members.
@@ -176,9 +185,17 @@ func (a *Account) PostCreateGroup(data struct {
 	}](fmt.Sprintf("/v1/groups/%s", a.Number), data)
 }
 
+type GetGroupOptions struct {
+	Expand bool
+}
+
 // List a specific Signal Group.
-func (a *Account) GetGroup(groupID string) (group Group, err error) {
-	return get[Group](fmt.Sprintf("/v1/groups/%s/%s", a.Number, groupID))
+func (a *Account) GetGroup(groupID string, opts GetGroupOptions) (group Group, err error) {
+	q := url.Values{}
+	if opts.Expand {
+		q.Set("expand", "true")
+	}
+	return get[Group](withQuery(fmt.Sprintf("/v1/groups/%s/%s", a.Number, groupID), q))
 }
 
 // Update the state of a Signal Group.
@@ -256,11 +273,43 @@ type MessageResponse struct {
 	RawFields map[string]any              `json:"raw_fields"`
 }
 
+type GetMessagesOptions struct {
+	Timeout           int
+	IgnoreAttachments bool
+	IgnoreStories     bool
+	IgnoreAvatars     bool
+	IgnoreStickers    bool
+	MaxMessages       int
+	SendReadReceipts  bool
+}
+
 // Receive Signal Messages.
 //
 // Only works if the signal api is running in `normal` or `native` mode. If you are running in `json-rpc` mode, use `GetMessagesSocket`.
-func (a *Account) GetMessages() (messages []MessageResponse, err error) {
-	return get[[]MessageResponse](fmt.Sprintf("/v1/receive/%s", a.Number))
+func (a *Account) GetMessages(opts GetMessagesOptions) (messages []MessageResponse, err error) {
+	q := url.Values{}
+	if opts.Timeout > 0 {
+		q.Set("timeout", strconv.Itoa(opts.Timeout))
+	}
+	if opts.IgnoreAttachments {
+		q.Set("ignore_attachments", "true")
+	}
+	if opts.IgnoreStories {
+		q.Set("ignore_stories", "true")
+	}
+	if opts.IgnoreAvatars {
+		q.Set("ignore_avatars", "true")
+	}
+	if opts.IgnoreStickers {
+		q.Set("ignore_stickers", "true")
+	}
+	if opts.MaxMessages > 0 {
+		q.Set("max_messages", strconv.Itoa(opts.MaxMessages))
+	}
+	if opts.SendReadReceipts {
+		q.Set("send_read_receipts", "true")
+	}
+	return get[[]MessageResponse](withQuery(fmt.Sprintf("/v1/receive/%s", a.Number), q))
 }
 
 // Opens a socket to receive Signal Messages and sends them to the `messages` channel.
@@ -443,11 +492,39 @@ type Contact struct {
 	UUID              string           `json:"uuid"`
 }
 
+type GetContactsOptions struct {
+	AllRecipients bool
+}
+
 // List Contacts.
 //
 // List all contacts for the given number.
-func (a *Account) GetContacts() (contacts []Contact, err error) {
-	return get[[]Contact](fmt.Sprintf("/v1/contacts/%s", a.Number))
+func (a *Account) GetContacts(opts GetContactsOptions) (contacts []Contact, err error) {
+	q := url.Values{}
+	if opts.AllRecipients {
+		q.Set("all_recipients", "true")
+	}
+	return get[[]Contact](withQuery(fmt.Sprintf("/v1/contacts/%s", a.Number), q))
+}
+
+type GetContactOptions struct {
+	AllRecipients bool
+}
+
+// List Contact.
+//
+// List a specific contact.
+func (a *Account) GetContact(uuid string, opts GetContactOptions) (contact Contact, err error) {
+	q := url.Values{}
+	if opts.AllRecipients {
+		q.Set("all_recipients", "true")
+	}
+	return get[Contact](withQuery(fmt.Sprintf("/v1/contacts/%s/%s", a.Number, uuid), q))
+}
+
+// Returns the avatar of a contact.
+func (a *Account) GetContactAvatar(uuid string) (avatar []byte, err error) {
+	return getRaw(fmt.Sprintf("/v1/contacts/%s/%s/avatar", a.Number, uuid))
 }
 
 // Updates the info associated to a number on the contact list. If the contact doesn’t exist yet, it will be added.
@@ -475,4 +552,124 @@ type SearchResult struct {
 func (a *Account) GetSearch(numbers []string) (results []SearchResult, err error) {
 	q := url.Values{"numbers": numbers}
 	return get[[]SearchResult](fmt.Sprintf("/v1/search/%s?%s", a.Number, q.Encode()))
+}
+
+// Set Pin.
+//
+// Sets a new Signal Pin.
+func (a *Account) PostPin(data struct {
+	Pin string `json:"pin"`
+}) (err error) {
+	_, err = post[any](fmt.Sprintf("/v1/accounts/%s/pin", a.Number), data)
+	return
+}
+
+// Remove Pin.
+//
+// Removes a Signal Pin.
+func (a *Account) DeletePin() (err error) {
+	_, err = delete[any](fmt.Sprintf("/v1/accounts/%s/pin", a.Number), nil)
+	return
+}
+
+type Device struct {
+	CreationTimestamp int64  `json:"creation_timestamp"`
+	ID                int64  `json:"id"`
+	LastSeenTimestamp int64  `json:"last_seen_timestamp"`
+	Name              string `json:"name"`
+}
+
+// List linked devices.
+//
+// List linked devices associated to this device.
+func (a *Account) GetDevices() (devices []Device, err error) {
+	return get[[]Device](fmt.Sprintf("/v1/devices/%s", a.Number))
+}
+
+// Remove linked device.
+//
+// Remove a linked device from the primary account.
+func (a *Account) DeleteDevice(deviceID int64) (err error) {
+	_, err = delete[any](fmt.Sprintf("/v1/devices/%s/%d", a.Number, deviceID), nil)
+	return
+}
+
+// Delete local account data.
+//
+// Delete all local data for the specified account. Only use this after unregistering the account or after removing a linked device.
+func (a *Account) DeleteLocalData(data struct {
+	IgnoreRegistered bool `json:"ignore_registered,omitempty"`
+}) (err error) {
+	_, err = delete[any](fmt.Sprintf("/v1/devices/%s/local-data", a.Number), data)
+	return
+}
+
+// Returns the avatar of a Signal Group.
+func (a *Account) GetGroupAvatar(groupID string) (avatar []byte, err error) {
+	return getRaw(fmt.Sprintf("/v1/groups/%s/%s/avatar", a.Number, groupID))
+}
+
+// Pin a message in a Signal Group.
+func (a *Account) PostGroupPinMessage(groupID string, data struct {
+	Duration     *int64 `json:"duration,omitempty"`
+	TargetAuthor string `json:"target_author"`
+	Timestamp    int64  `json:"timestamp"`
+}) (err error) {
+	_, err = post[any](fmt.Sprintf("/v1/groups/%s/%s/pin-message", a.Number, groupID), data)
+	return
+}
+
+// Unpin a message in a Signal Group.
+func (a *Account) DeleteGroupPinMessage(groupID string, data struct {
+	TargetAuthor string `json:"target_author"`
+	Timestamp    int64  `json:"timestamp"`
+}) (err error) {
+	_, err = delete[any](fmt.Sprintf("/v1/groups/%s/%s/pin-message", a.Number, groupID), data)
+	return
+}
+
+type Account_PostPollResponse struct {
+	Timestamp string `json:"timestamp"`
+}
+
+// Create a new poll.
+func (a *Account) PostPoll(data struct {
+	AllowMultipleSelections *bool    `json:"allow_multiple_selections,omitempty"`
+	Answers                 []string `json:"answers"`
+	Question                string   `json:"question"`
+	Recipient               string   `json:"recipient"`
+}) (resp Account_PostPollResponse, err error) {
+	return post[Account_PostPollResponse](fmt.Sprintf("/v1/polls/%s", a.Number), data)
+}
+
+// Close a poll.
+func (a *Account) DeletePoll(data struct {
+	PollTimestamp string `json:"poll_timestamp"`
+	Recipient     string `json:"recipient"`
+}) (err error) {
+	_, err = delete[any](fmt.Sprintf("/v1/polls/%s", a.Number), data)
+	return
+}
+
+// Answer a poll.
+func (a *Account) PostPollVote(data struct {
+	PollAuthor      string `json:"poll_author"`
+	PollTimestamp   string `json:"poll_timestamp"`
+	Recipient       string `json:"recipient"`
+	SelectedAnswers []int  `json:"selected_answers"`
+}) (err error) {
+	_, err = post[any](fmt.Sprintf("/v1/polls/%s/vote", a.Number), data)
+	return
+}
+
+type Account_DeleteRemoteMessageResponse struct {
+	Timestamp string `json:"timestamp"`
+}
+
+// Delete a signal message.
+func (a *Account) DeleteRemoteMessage(data struct {
+	Recipient string `json:"recipient"`
+	Timestamp int64  `json:"timestamp"`
+}) (resp Account_DeleteRemoteMessageResponse, err error) {
+	return delete[Account_DeleteRemoteMessageResponse](fmt.Sprintf("/v1/remote-delete/%s", a.Number), data)
 }

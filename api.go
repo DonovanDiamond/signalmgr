@@ -33,14 +33,12 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("%s %s: status %d: %s", e.Method, e.Path, e.Status, strings.ReplaceAll(e.Message, "\n", ""))
 }
 
-type params map[string]string
-
-func encodeParams(params params) string {
-	urlParams := url.Values{}
-	for key, val := range params {
-		urlParams.Add(key, val)
+// Appends q as a query string to path, or returns path unchanged when q is empty.
+func withQuery(path string, q url.Values) string {
+	if len(q) == 0 {
+		return path
 	}
-	return urlParams.Encode()
+	return path + "?" + q.Encode()
 }
 
 var methods = map[string]func(string) *fiber.Agent{
