@@ -5,9 +5,11 @@ A working system: the gateway plus a real [signal-cli-rest-api](https://github.c
 ## Start
 
 ```
-docker compose up -d --build
-docker compose logs gateway
+make up
+make logs
 ```
+
+`make` with no target lists every target. The targets wrap `docker compose -f compose.yaml ...`; `make up` is `docker compose up -d --build`. They also work from elsewhere with `make -C gateway/example up`.
 
 The gateway is at <http://127.0.0.1:8090>. It is published on the loopback address only; it speaks plain HTTP, so put a reverse proxy that terminates TLS in front of it before anyone else uses it, and list the proxy in `trusted_proxies` in `config.yaml`.
 
@@ -16,7 +18,7 @@ The gateway is at <http://127.0.0.1:8090>. It is published on the loopback addre
 The first administrator is `admin`. On the first start with an empty database a password is generated and logged once:
 
 ```
-docker compose logs gateway | grep password
+make password
 ```
 
 To choose the password instead, copy `.env.example` to `.env` and set `SIGNALGW_ADMIN_PASSWORD` (12 to 72 characters) before the first start. It is read only while the database is empty; to change it later, use the Users page or reset everything (below). Change a generated password after signing in.
@@ -36,18 +38,18 @@ Use the link action on the Numbers page. A QR code appears; on the phone open Si
 ## Try it without a phone number
 
 ```
-docker compose --profile fake up -d --build
+make fake
 ```
 
-This adds `fakesignal` (an in-memory stand-in for signal-cli-rest-api with sample numbers), a one-shot `fake-seed` that labels them, and a second gateway, `gateway-fake`, at <http://127.0.0.1:8091> with its own database and its own first-admin password (`docker compose logs gateway-fake | grep password`). The real services keep running beside it; stop them with `docker compose stop gateway signal-api` if you only want the fake. Requesting a link QR makes a new fake account appear after 8 seconds. Nothing here talks to Signal.
+This adds `fakesignal` (an in-memory stand-in for signal-cli-rest-api with sample numbers), a one-shot `fake-seed` that labels them, and a second gateway, `gateway-fake`, at <http://127.0.0.1:8091> with its own database and its own first-admin password (`docker compose logs gateway-fake | grep password`, also printed by `make fake`). The real services keep running beside it; stop them with `docker compose stop gateway signal-api` if you only want the fake. Requesting a link QR makes a new fake account appear after 8 seconds. Nothing here talks to Signal.
 
 ## Reset everything
 
 ```
-docker compose --profile fake down -v
+make reset
 ```
 
-This deletes all three volumes: the gateway databases and signing keys, and the registered Signal accounts in `signal-data`. Registrations are lost; a number may need re-registering. To reset only the gateway, run `docker compose down` and then `docker volume rm signal-gateway-example_gateway-data`.
+It asks you to type `yes`; `make reset FORCE=1` skips the prompt. This deletes all three volumes: the gateway databases and signing keys, and the registered Signal accounts in `signal-data`. Registrations are lost; a number may need re-registering. To wipe only the fake gateway, run `make fake-reset`. To stop without deleting anything, run `make down`. To reset only the real gateway, run `make down` and then `docker volume rm signal-gateway-example_gateway-data`.
 
 ## Files
 
