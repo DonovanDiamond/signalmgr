@@ -43,6 +43,7 @@
 
 <Modal title="Add a number" testid="dialog-add-number" {onclose}>
 	<form onsubmit={submit} class="grid gap-4">
+		<p class="muted text-sm">Registering needs a phone number. An account without one is added by linking this gateway to a phone instead.</p>
 		<div>
 			<label class="field-label" for="add-number">Phone number</label>
 			<input id="add-number" class="input w-full" type="tel" placeholder="e.g. +27 82 555 0143" bind:value={number} required />

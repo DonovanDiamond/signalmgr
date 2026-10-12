@@ -2,9 +2,8 @@
 	import Modal from './Modal.svelte';
 	import { apiFetch, seg } from '$lib/api';
 	import { act } from '$lib/act';
-	import { formatNumber } from '$lib/format';
 
-	let { number, onclose, ondone }: { number: string; onclose: () => void; ondone: () => void } = $props();
+	let { id, name, onclose, ondone }: { id: string; name: string; onclose: () => void; ondone: () => void } = $props();
 
 	let code = $state('');
 	let pin = $state('');
@@ -18,7 +17,7 @@
 		const body: { code: string; pin?: string } = { code: code.trim() };
 		if (pin) body.pin = pin;
 		const ok = await act(
-			() => apiFetch(`/api/numbers/${seg(number)}/verify`, { method: 'POST', body: JSON.stringify(body) }),
+			() => apiFetch(`/api/numbers/${seg(id)}/verify`, { method: 'POST', body: JSON.stringify(body) }),
 			'Number registered.'
 		);
 		busy = false;
@@ -26,7 +25,7 @@
 	}
 </script>
 
-<Modal title="Enter code for {formatNumber(number)}" testid="dialog-verify" {onclose}>
+<Modal title="Enter code for {name}" testid="dialog-verify" {onclose}>
 	<form onsubmit={submit} class="grid gap-4">
 		<div>
 			<label class="field-label" for="verify-code">6-digit code</label>

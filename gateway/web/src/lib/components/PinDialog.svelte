@@ -2,9 +2,8 @@
 	import Modal from './Modal.svelte';
 	import { apiFetch, seg } from '$lib/api';
 	import { act } from '$lib/act';
-	import { formatNumber } from '$lib/format';
 
-	let { number, onclose, ondone }: { number: string; onclose: () => void; ondone: () => void } = $props();
+	let { id, name, onclose, ondone }: { id: string; name: string; onclose: () => void; ondone: () => void } = $props();
 
 	let pin = $state('');
 	let busy = $state(false);
@@ -15,7 +14,7 @@
 		e.preventDefault();
 		busy = true;
 		const ok = await act(
-			() => apiFetch(`/api/numbers/${seg(number)}/pin`, { method: 'PUT', body: JSON.stringify({ pin }) }),
+			() => apiFetch(`/api/numbers/${seg(id)}/pin`, { method: 'PUT', body: JSON.stringify({ pin }) }),
 			'PIN set.'
 		);
 		busy = false;
@@ -24,13 +23,13 @@
 
 	async function remove() {
 		busy = true;
-		const ok = await act(() => apiFetch(`/api/numbers/${seg(number)}/pin`, { method: 'DELETE' }), 'PIN removed.');
+		const ok = await act(() => apiFetch(`/api/numbers/${seg(id)}/pin`, { method: 'DELETE' }), 'PIN removed.');
 		busy = false;
 		if (ok) ondone();
 	}
 </script>
 
-<Modal title="PIN for {formatNumber(number)}" testid="dialog-pin" {onclose}>
+<Modal title="PIN for {name}" testid="dialog-pin" {onclose}>
 	<form onsubmit={set} class="grid gap-4">
 		<div>
 			<label class="field-label" for="pin-new">New PIN</label>

@@ -25,7 +25,7 @@ Dependencies point inward: `api` calls `auth` and `signal`; `signal` and `auth` 
 
 ## Database (SQLite, `src/db/migrations`)
 
-- `numbers(number PK, label, register_requested_at NULL, created_at)`: what Signal cannot hold. A row may exist for a number Signal does not know.
+- `numbers(number PK, label, register_requested_at NULL, created_at)`: what Signal cannot hold. A row may exist for a number Signal does not know. `number` holds the account id: E.164, or the lowercase ACI of a numberless account (migration 003).
 - `audit(id, at, actor, action, number, detail, result)`: append-only.
 - `users(id, username UNIQUE, name, role admin|user, source local|ad, password_hash, disabled, created_at)`: a hash exists exactly when the source is local.
 - `sessions(id = JWT jti, user_id, expires_at, revoked_at, refresh_hash UNIQUE, refresh_expires_at)`: one row per issued access token. `expires_at` is the access expiry; `refresh_hash` is the SHA-256 hex of the opaque refresh token (NULL for sessions from before migration 002, which cannot refresh). Refreshing revokes the old row and inserts a new one.
@@ -48,7 +48,7 @@ JSON under `/api`; auth is `Authorization: Bearer <access jwt>` except login and
 | `PATCH /api/users/:username` | admin | `{disabled}` (required); local users other than yourself |
 | `PUT /api/users/:username/password` | admin | `{password}`; local users only; ends that user's sessions |
 | `GET /api/gateway` | any | `{online,version,mode,installationName}`; `online:false` when Signal does not answer |
-| `GET /api/numbers` | any | `[{number,label,state,devices:[{id,name,created,lastSeen,primary}]}]`; 502 when Signal is unreachable |
+| `GET /api/numbers` | any | `[{id,number,aci,label,state,devices:[{id,name,created,lastSeen,primary}]}]`; `id` is the number, or the lowercase ACI when `number` is empty; use it in URLs; 502 when Signal is unreachable |
 | `POST /api/numbers` | admin | `{number,label}` |
 | `PATCH /api/numbers/:number` | admin | `{label}` |
 | `POST /api/numbers/:number/register` | admin | `{captcha,voice}` |
@@ -62,7 +62,7 @@ JSON under `/api`; auth is `Authorization: Bearer <access jwt>` except login and
 | `GET /api/link/uri?deviceName=` | admin | `{uri}` |
 | `GET /api/audit?limit=` | admin | newest first, default 200, at most 1000 |
 
-`:number` is URL-escaped (`%2B27...`); the app runs with `UnescapePath`. Any other `/api` path is a JSON 404; any other path serves the UI, falling back to `index.html` for client-side routes.
+`:number` is the account id: an E.164 number or an ACI (any case, lowercased), else 400; register and verify accept E.164 only. It is URL-escaped (`%2B27...`); the app runs with `UnescapePath`. Any other `/api` path is a JSON 404; any other path serves the UI, falling back to `index.html` for client-side routes.
 
 Link routes are admin-only because linking a device gives that device full access to the account.
 

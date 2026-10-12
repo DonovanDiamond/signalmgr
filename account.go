@@ -12,24 +12,57 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Account is the handle for per-account calls. Number is the account identifier:
+// an E.164 number, or the ACI (UUID) for an account that has no phone number.
 type Account struct {
 	Number string
+}
+
+// AccountInfo is one entry of the account list. Number is empty for an account
+// without a phone number; ACI may be empty on servers that do not report it.
+type AccountInfo struct {
+	Number string `json:"number"`
+	ACI    string `json:"aci"`
+}
+
+// ID returns the identifier to use for this account in other calls: the number, else the ACI.
+func (a AccountInfo) ID() string {
+	if a.Number != "" {
+		return a.Number
+	}
+	return a.ACI
+}
+
+// UnmarshalJSON accepts a bare number string (signal-cli-rest-api 0.101) or an
+// {"number","aci"} object (PR #896), where either value may be null.
+func (a *AccountInfo) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		*a = AccountInfo{Number: s}
+		return nil
+	}
+	var o struct {
+		Number *string `json:"number"`
+		ACI    *string `json:"aci"`
+	}
+	if err := json.Unmarshal(b, &o); err != nil {
+		return err
+	}
+	*a = AccountInfo{}
+	if o.Number != nil {
+		a.Number = *o.Number
+	}
+	if o.ACI != nil {
+		a.ACI = *o.ACI
+	}
+	return nil
 }
 
 // List all accounts
 //
 // Lists all of the accounts linked or registered
-func GetAccounts() (accounts []Account, err error) {
-	list, err := get[[]string]("/v1/accounts")
-	if err != nil {
-		return
-	}
-	for _, num := range list {
-		accounts = append(accounts, Account{
-			Number: num,
-		})
-	}
-	return
+func GetAccounts() ([]AccountInfo, error) {
+	return get[[]AccountInfo]("/v1/accounts")
 }
 
 type Account_Configuration struct {

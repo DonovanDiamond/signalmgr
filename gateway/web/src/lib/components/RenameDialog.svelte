@@ -2,15 +2,15 @@
 	import Modal from './Modal.svelte';
 	import { apiFetch, seg } from '$lib/api';
 	import { act } from '$lib/act';
-	import { formatNumber } from '$lib/format';
 
 	let {
-		number,
+		id,
+		name,
 		current,
 		title,
 		onclose,
 		ondone
-	}: { number: string; current: string; title: string; onclose: () => void; ondone: () => void } = $props();
+	}: { id: string; name: string; current: string; title: string; onclose: () => void; ondone: () => void } = $props();
 
 	// svelte-ignore state_referenced_locally -- the dialog is mounted per use, so the starting value is read once
 	let label = $state(current);
@@ -20,7 +20,7 @@
 		e.preventDefault();
 		busy = true;
 		const ok = await act(
-			() => apiFetch(`/api/numbers/${seg(number)}`, { method: 'PATCH', body: JSON.stringify({ label: label.trim() }) }),
+			() => apiFetch(`/api/numbers/${seg(id)}`, { method: 'PATCH', body: JSON.stringify({ label: label.trim() }) }),
 			'Label saved.'
 		);
 		busy = false;
@@ -31,7 +31,7 @@
 <Modal {title} testid="dialog-rename" {onclose}>
 	<form onsubmit={submit} class="grid gap-4">
 		<div>
-			<label class="field-label" for="rename-label">Label for {formatNumber(number)}</label>
+			<label class="field-label" for="rename-label">Label for {name}</label>
 			<input id="rename-label" class="input w-full" type="text" placeholder="e.g. Reception" bind:value={label} />
 		</div>
 		<div class="flex justify-end gap-2">

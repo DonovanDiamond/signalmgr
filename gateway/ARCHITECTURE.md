@@ -9,7 +9,7 @@
 | Path | Role |
 |---|---|
 | `cmd/gateway/main.go` | Entrypoint: `-config` flag, `version` var (set by `-X main.version`), wires config → db → auth → signal service → api, graceful shutdown |
-| `cmd/fakesignal/main.go` | Dev entrypoint: serves the fake signal-cli-rest-api (`-listen`, `-empty`, `-seed design`, `-link-after`) |
+| `cmd/fakesignal/main.go` | Dev entrypoint: serves the fake signal-cli-rest-api (`-listen`, `-empty`, `-seed design`, `-accounts-format strings|objects`, `-link-after`) |
 | `cmd/devseed/main.go` | Dev tool: writes the design's number labels into an empty gateway database (`-db`) |
 | `src/config` | `config.yaml` loading, exported `Defaults()` / `Resolve()`, env overrides, validation |
 | `src/db` | SQLite open + embedded migrations; numbers, audit, users, sessions queries (sessions carry refresh-token hashes) |
@@ -24,7 +24,7 @@
 ## Flow
 browser (`web/src/lib/api.ts` `apiFetch`, bearer access token; on a 401 it spends the refresh token once via `session.refresh` and retries) → `/api/*` (`src/api/server.go`) → `requireAuth` (`auth.Service.Verify`: JWT + live session row) → `requireAdmin` where the route needs it → handler (`handlers.go`) → `signal.Service` (validate, call `signalmgr`, write audit) → signal-cli-rest-api.
 - db holds what upstream cannot: number labels, "awaiting code" state, audit log, users, sessions.
-- `signal.Service.Numbers` merges `signalmgr.GetAccounts` with `numbers` rows to derive state (`registered`, `awaiting_code`, `not_registered`).
+- `signal.Service.Numbers` merges `signalmgr.GetAccounts` with `numbers` rows to derive state (`registered`, `awaiting_code`, `not_registered`). Accounts are keyed by id: the number, or the lowercase ACI for a numberless account; `signal.ParseID` checks path ids (E.164 or ACI).
 - Sign-in returns a short-lived access JWT plus an opaque refresh token. `POST /auth/refresh` spends the refresh token (its session is revoked in one statement) and issues a fresh pair under a new session; only the SHA-256 digest of a refresh token is stored.
 - Errors: `api.fail` maps `auth.Err*` and `signal.Err*` to HTTP statuses; unknown `/api/*` paths return 404 JSON; any other path serves the SPA (`index.html` fallback). Without a built UI `web.FS()` returns the placeholder page together with an error; `cmd/gateway` logs a warning and the API still serves.
 
@@ -55,6 +55,7 @@ Role is enforced per route in `src/api/server.go`, never inside handlers. AD use
 ## Data (`src/db/migrations/`)
 `001_initial.sql`: `numbers` (number, label, register_requested_at), `audit` (append-only), `users` (local with password hash, or `ad`), `sessions` (id = JWT `jti`, expires_at, revoked_at).
 `002_refresh_and_disable.sql`: `users.disabled`; `sessions.refresh_hash` (unique) and `refresh_expires_at`. `sessions.expires_at` is now the access-token expiry; sessions from before the migration have no refresh hash and cannot be refreshed.
+`003_numbers_aci_ids.sql`: rebuilds `numbers` so the key may be an ACI (lowercase UUID) as well as an E.164 number.
 
 ## Conventions
 - Every mutating `signal.Service` method takes `actor` and writes one audit row (result `ok` or error text).

@@ -58,3 +58,48 @@ func TestErrorStatusYieldsAPIError(t *testing.T) {
 		t.Fatalf("got status %d tokens %v", apiErr.Status, apiErr.ChallengeTokens)
 	}
 }
+
+func TestGetAccountsBothShapes(t *testing.T) {
+	const aci = "5f1c2d3e-4b5a-4c6d-8e7f-90a1b2c3d4e5"
+	cases := []struct {
+		name, body string
+		want       []AccountInfo
+		wantIDs    []string
+	}{
+		{"strings", `["+27111","+27222"]`, []AccountInfo{{Number: "+27111"}, {Number: "+27222"}}, []string{"+27111", "+27222"}},
+		{"objects", `[{"number":"+27111","aci":"` + aci + `"},{"number":"","aci":"` + aci + `"},{"number":null,"aci":null}]`,
+			[]AccountInfo{{Number: "+27111", ACI: aci}, {ACI: aci}, {}}, []string{"+27111", aci, ""}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			serve(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(c.body)) })
+			got, err := GetAccounts()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, c.want) {
+				t.Fatalf("got %+v, want %+v", got, c.want)
+			}
+			for i, a := range got {
+				if a.ID() != c.wantIDs[i] {
+					t.Fatalf("ID() = %q, want %q", a.ID(), c.wantIDs[i])
+				}
+			}
+		})
+	}
+}
+
+func TestACIPathSegment(t *testing.T) {
+	const aci = "5f1c2d3e-4b5a-4c6d-8e7f-90a1b2c3d4e5"
+	var got string
+	serve(t, func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.EscapedPath()
+		w.Write([]byte("[]"))
+	})
+	if _, err := (&Account{Number: aci}).GetDevices(); err != nil {
+		t.Fatal(err)
+	}
+	if got != "/v1/devices/"+aci {
+		t.Fatalf("path = %q", got)
+	}
+}

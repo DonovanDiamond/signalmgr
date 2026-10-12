@@ -12,6 +12,8 @@ A **number** is a phone number in E.164 form (a leading `+`, then 7 to 15 digits
 - **awaiting_code**: registration was requested here and no verification code has been entered yet.
 - **not_registered**: the number was added here and nothing has been requested.
 
+An account that has no phone number (Signal is starting to allow this; it needs signal-cli-rest-api with PR #896) is shown by its **ACI**, a UUID, and is managed like any other: label, devices, PIN, unregister. Such an account can only be created by linking a phone; adding and registering by number still need a phone number.
+
 Labels such as "Reception" and the awaiting-code state exist only in the gateway's own database. Numbers that exist in Signal but were never added here appear unlabelled.
 
 An administrator can add a number, change its label, register it (a captcha token is required, by SMS or voice), verify it with the 6-digit code and an optional PIN, unregister it, link a new account to this gateway by QR code, add a device to a number by pasting a `sgnl://linkdevice?` link, remove a linked device, set or remove the registration PIN, and submit a rate-limit challenge.
@@ -56,7 +58,7 @@ The gateway shares its version with the library: `gateway/vX.Y.Z` requires `sign
 
 ```
 make web
-go run ./cmd/fakesignal -seed design      # sample numbers; a new account appears 8 s after a link QR is requested (-link-after 0 = never)
+go run ./cmd/fakesignal -seed design      # sample numbers (add -accounts-format objects to answer like PR #896 and include one numberless account); a new account appears 8 s after a link QR is requested (-link-after 0 = never)
 go run ./cmd/devseed -db data/gateway.db     # labels for them; only into an empty numbers table
 go run ./cmd/gateway -config config.yaml
 ```

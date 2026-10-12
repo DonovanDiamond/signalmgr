@@ -40,7 +40,11 @@ type env struct {
 
 func newEnv(t *testing.T) *env { return newEnvProxies(t, nil) }
 
-func newEnvProxies(t *testing.T, trusted []string) *env {
+func newEnvProxies(t *testing.T, trusted []string) *env { return newEnvWith(t, trusted, false) }
+
+// newEnvWith objects=true makes the fake answer like PR #896 and seeds a
+// numberless account.
+func newEnvWith(t *testing.T, trusted []string, objects bool) *env {
 	t.Helper()
 	dir := t.TempDir()
 	yaml := fmt.Sprintf("db: %s\njwt:\n  private_key_path: %s\n  public_key_path: %s\nfirst_admin:\n  password: %s\n",
@@ -71,7 +75,12 @@ func newEnvProxies(t *testing.T, trusted []string) *env {
 		t.Fatal(err)
 	}
 
-	fake := httptest.NewServer(fakesignal.New(true))
+	fs := fakesignal.New(true)
+	fs.Objects = objects
+	if objects {
+		fs.SeedDesign()
+	}
+	fake := httptest.NewServer(fs)
 	t.Cleanup(fake.Close)
 	webFS := fstest.MapFS{"index.html": {Data: []byte("<html>spa</html>")}, "app.js": {Data: []byte("js")}}
 	return &env{app: New(a, sig.New(x, fake.URL, log), "Test Install", trusted, webFS, log), fake: fake, auth: a}
@@ -588,5 +597,85 @@ func TestSpoofedForwardedForSharesLimiter(t *testing.T) {
 	}
 	if last != 429 {
 		t.Errorf("last status %d, want 429: spoofed leftmost entries bypass the limiter", last)
+	}
+}
+
+type account struct{ ID, Number, ACI, Label, State string }
+
+func accounts(t *testing.T, e *env, token string) map[string]account {
+	t.Helper()
+	r := e.do(t, "GET", "/api/numbers", token, "")
+	var list []account
+	if err := json.Unmarshal([]byte(r.body), &list); err != nil || r.status != 200 {
+		t.Fatalf("numbers: %d %q: %v", r.status, r.body, err)
+	}
+	out := map[string]account{}
+	for _, a := range list {
+		out[a.ID] = a
+	}
+	return out
+}
+
+func TestAccountsStringsFormat(t *testing.T) {
+	e := newEnv(t)
+	admin := e.login(t, "admin", adminPass)
+	a, ok := accounts(t, e, admin)["+27821234567"]
+	if !ok || a.Number != "+27821234567" || a.ACI != "" || a.State != "registered" {
+		t.Errorf("got %+v", a)
+	}
+}
+
+func TestNumberlessAccount(t *testing.T) {
+	e := newEnvWith(t, nil, true)
+	admin := e.login(t, "admin", adminPass)
+	const aci = fakesignal.NumberlessACI
+	a, ok := accounts(t, e, admin)[aci]
+	if !ok || a.Number != "" || a.ACI != aci || a.State != "registered" {
+		t.Fatalf("numberless account: %+v (found %t)", a, ok)
+	}
+	if n := accounts(t, e, admin)["+27825550143"]; n.Number != "+27825550143" || n.ACI != "" {
+		t.Errorf("numbered account: %+v", n)
+	}
+
+	// An upper-case ACI in the path is normalised to the lowercase id.
+	upper := strings.ToUpper(aci)
+	if r := e.do(t, "PATCH", "/api/numbers/"+upper, admin, `{"label":"Outreach phone"}`); r.status != 204 {
+		t.Fatalf("label: %d %s", r.status, r.body)
+	}
+	if got := accounts(t, e, admin)[aci].Label; got != "Outreach phone" {
+		t.Errorf("label = %q", got)
+	}
+	if r := e.do(t, "PUT", "/api/numbers/"+aci+"/pin", admin, `{"pin":"123456"}`); r.status != 204 {
+		t.Errorf("set pin: %d %s", r.status, r.body)
+	}
+	if r := e.do(t, "POST", "/api/numbers/"+aci+"/devices", admin, `{"uri":"sgnl://linkdevice?uuid=x&pub_key=y"}`); r.status != 204 {
+		t.Errorf("link device: %d %s", r.status, r.body)
+	}
+	if r := e.do(t, "DELETE", "/api/numbers/"+aci+"/devices/2", admin, ""); r.status != 204 {
+		t.Errorf("remove device: %d %s", r.status, r.body)
+	}
+	if r := e.do(t, "POST", "/api/numbers/"+aci+"/unregister", admin, `{}`); r.status != 204 {
+		t.Fatalf("unregister: %d %s", r.status, r.body)
+	}
+	if got := accounts(t, e, admin)[aci]; got.State != "not_registered" || got.Label != "Outreach phone" {
+		t.Errorf("after unregister: %+v", got)
+	}
+}
+
+func TestAccountIDValidation(t *testing.T) {
+	e := newEnvWith(t, nil, true)
+	admin := e.login(t, "admin", adminPass)
+	for _, id := range []string{"27821234567", "not-an-id", "5f1c2d3e-4b5a-4c6d-8e7f-90a1b2c3d4e", "5f1c2d3e-4b5a-4c6d-8e7f-90a1b2c3d4eg"} {
+		r := e.do(t, "PATCH", "/api/numbers/"+id, admin, `{"label":"x"}`)
+		if r.status != 400 || !strings.Contains(r.body, "ACI") {
+			t.Errorf("%s: got %d %s", id, r.status, r.body)
+		}
+	}
+	// Registering and adding stay phone-number only.
+	if r := e.do(t, "POST", "/api/numbers/"+fakesignal.NumberlessACI+"/register", admin, `{"captcha":"signalcaptcha://abc"}`); r.status != 400 {
+		t.Errorf("register by ACI: %d %s", r.status, r.body)
+	}
+	if r := e.do(t, "POST", "/api/numbers", admin, `{"number":"`+fakesignal.NumberlessACI+`"}`); r.status != 400 {
+		t.Errorf("add by ACI: %d %s", r.status, r.body)
 	}
 }

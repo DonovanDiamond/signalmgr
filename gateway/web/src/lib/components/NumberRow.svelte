@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatNumber, ageMs, ago, RECENT_MS } from '$lib/format';
+	import { formatNumber, shortAci, ageMs, ago, RECENT_MS } from '$lib/format';
 	import { session } from '$lib/session.svelte';
 	import type { Device, SignalNumber } from '$lib/types';
 
@@ -27,15 +27,16 @@
 		const a = ageMs(d.lastSeen);
 		return d.primary || (a !== null && a < RECENT_MS);
 	};
-	const id = $derived(`devices-${item.number.replace(/\D/g, '')}`);
+	const id = $derived(`devices-${item.id.replace(/[^0-9a-zA-Z]/g, '')}`);
 </script>
 
-<div class="ledger-item" data-testid="number-row" data-number={item.number} data-state={item.state}>
+<div class="ledger-item" data-testid="number-row" data-id={item.id} data-number={item.number} data-state={item.state}>
 	<div class="row">
 		<div>
-			<div class="row-num" style:color={item.state === 'not_registered' ? 'var(--muted)' : undefined}>{formatNumber(item.number)}</div>
+			<div class="row-num" style:color={item.state === 'not_registered' ? 'var(--muted)' : undefined}>{item.number ? formatNumber(item.number) : item.label || 'No phone number'}</div>
 			<div class="narrow muted mt-0.5 flex items-center gap-3 text-[15px]">
-				{#if item.label}<span data-testid="row-label">{item.label}</span>{/if}
+				{#if item.number && item.label}<span data-testid="row-label">{item.label}</span>{/if}
+				{#if !item.number && item.aci}<span class="tabular-nums" title={item.aci} data-testid="row-aci">{shortAci(item.aci)}</span>{/if}
 				{#if session.isAdmin}
 					<button type="button" class="xlink" style="font-weight:500" data-testid="action-rename" onclick={() => onaction('rename')}>{item.label ? 'Rename' : 'Add a label'}</button>
 				{/if}
@@ -74,7 +75,7 @@
 			<div class="sub-head">
 				<span class="narrow text-[15px]">Linked devices</span>
 				{#if session.isAdmin}
-					<button type="button" class="xlink" data-testid="action-add-device" onclick={() => onaction('add-device')}>Add a device to this number</button>
+					<button type="button" class="xlink" data-testid="action-add-device" onclick={() => onaction('add-device')}>Add a device to this {item.number ? 'number' : 'account'}</button>
 				{/if}
 			</div>
 			{#each item.devices as d (d.id)}

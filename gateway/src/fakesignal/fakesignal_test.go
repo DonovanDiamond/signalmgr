@@ -108,3 +108,22 @@ func TestSeedDesign(t *testing.T) {
 		t.Fatalf("pastoral: %d", rec.Code)
 	}
 }
+
+func TestAccountsFormats(t *testing.T) {
+	strs := do(t, New(true), "GET", "/v1/accounts", "")
+	if !strings.HasPrefix(strs.Body.String(), `["+27821234567"`) {
+		t.Errorf("strings format: %s", strs.Body)
+	}
+	s := New(false)
+	s.Objects = true
+	s.SeedDesign()
+	objs := do(t, s, "GET", "/v1/accounts", "").Body.String()
+	for _, want := range []string{`{"number":"+27825550143","aci":null}`, `{"number":"","aci":"` + NumberlessACI + `"}`} {
+		if !strings.Contains(objs, want) {
+			t.Errorf("objects format lacks %s: %s", want, objs)
+		}
+	}
+	if rec := do(t, s, "GET", "/v1/devices/"+NumberlessACI, ""); rec.Code != http.StatusOK {
+		t.Errorf("numberless devices: %d", rec.Code)
+	}
+}

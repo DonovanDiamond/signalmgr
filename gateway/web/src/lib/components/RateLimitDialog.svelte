@@ -2,9 +2,8 @@
 	import Modal from './Modal.svelte';
 	import { apiFetch, seg } from '$lib/api';
 	import { act } from '$lib/act';
-	import { formatNumber } from '$lib/format';
 
-	let { number, onclose, ondone }: { number: string; onclose: () => void; ondone: () => void } = $props();
+	let { id, name, onclose, ondone }: { id: string; name: string; onclose: () => void; ondone: () => void } = $props();
 
 	let challengeToken = $state('');
 	let captcha = $state('');
@@ -23,7 +22,7 @@
 		busy = true;
 		const ok = await act(
 			() =>
-				apiFetch(`/api/numbers/${seg(number)}/rate-limit`, {
+				apiFetch(`/api/numbers/${seg(id)}/rate-limit`, {
 					method: 'POST',
 					body: JSON.stringify({ challengeToken: challengeToken.trim(), captcha: captcha.trim() })
 				}),
@@ -34,7 +33,7 @@
 	}
 </script>
 
-<Modal title="Rate-limit challenge for {formatNumber(number)}" testid="dialog-rate-limit" {onclose}>
+<Modal title="Rate-limit challenge for {name}" testid="dialog-rate-limit" {onclose}>
 	<form onsubmit={submit} class="grid gap-4">
 		<p class="muted text-sm">
 			Solve the captcha at

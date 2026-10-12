@@ -15,7 +15,7 @@
 		numbers: SignalNumber[];
 		load: () => Promise<SignalNumber[]>;
 		onclose: () => void;
-		ondone: (number: string) => void;
+		ondone: (id: string) => void;
 	} = $props();
 
 	let deviceName = $state('');
@@ -25,7 +25,7 @@
 	let busy = $state(false);
 	let timer: ReturnType<typeof setInterval> | undefined;
 
-	// Fixed when the QR is issued, so a number that existed before is never mistaken for the new one.
+	// Fixed when the QR is issued, so an account that existed before is never mistaken for the new one.
 	let known = new Set<string>();
 
 	const problem = $derived(deviceName.trim() ? '' : 'Give this gateway a name.');
@@ -49,17 +49,17 @@
 		});
 		busy = false;
 		if (!ok) return;
-		known = new Set(numbers.map((n) => n.number));
+		known = new Set(numbers.map((n) => n.id));
 		waiting = true;
 		timer = setInterval(poll, 3000);
 	}
 
 	async function poll() {
 		try {
-			const added = (await load()).find((n) => !known.has(n.number));
+			const added = (await load()).find((n) => !known.has(n.id));
 			if (added) {
 				stop();
-				ondone(added.number);
+				ondone(added.id);
 			}
 		} catch {
 			// a transient failure must not end the wait; the next tick retries

@@ -73,6 +73,8 @@ type SharedContact struct {
 
 type RemoteDelete struct {
 	Timestamp int64 `json:"timestamp,omitempty"`
+	// Added by signal-cli-rest-api PR #896; absent on older servers.
+	TargetTimestamp int64 `json:"targetTimestamp,omitempty"`
 }
 
 type Sticker struct {
@@ -287,6 +289,8 @@ type MessageEnvelope struct {
 }
 
 type AdminDelete struct {
+	// Added by signal-cli-rest-api PR #896; absent on older servers.
+	TargetTimestamp int64 `json:"targetTimestamp,omitempty"`
 	// Deprecated: Use TargetAuthorNumber and TargetAuthorUuid instead
 	TargetAuthor        string `json:"targetAuthor,omitempty"`
 	TargetAuthorNumber  string `json:"targetAuthorNumber,omitempty"`

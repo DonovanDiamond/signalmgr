@@ -2,9 +2,8 @@
 	import Modal from './Modal.svelte';
 	import { apiFetch, seg } from '$lib/api';
 	import { act } from '$lib/act';
-	import { formatNumber } from '$lib/format';
 
-	let { number, onclose, ondone }: { number: string; onclose: () => void; ondone: () => void } = $props();
+	let { id, name, onclose, ondone }: { id: string; name: string; onclose: () => void; ondone: () => void } = $props();
 
 	let uri = $state('');
 	let busy = $state(false);
@@ -15,7 +14,7 @@
 		e.preventDefault();
 		busy = true;
 		const ok = await act(
-			() => apiFetch(`/api/numbers/${seg(number)}/devices`, { method: 'POST', body: JSON.stringify({ uri: uri.trim() }) }),
+			() => apiFetch(`/api/numbers/${seg(id)}/devices`, { method: 'POST', body: JSON.stringify({ uri: uri.trim() }) }),
 			'Device linked.'
 		);
 		busy = false;
@@ -23,7 +22,7 @@
 	}
 </script>
 
-<Modal title="Add a device to {formatNumber(number)}" testid="dialog-add-device" {onclose}>
+<Modal title="Add a device to {name}" testid="dialog-add-device" {onclose}>
 	<form onsubmit={submit} class="grid gap-4">
 		<div>
 			<label class="field-label" for="device-uri">Link from the new device</label>

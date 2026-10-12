@@ -10,7 +10,7 @@
 |---|---|
 | `api.go` | `API_URL` (default `http://127.0.0.1:8080`) + private generic HTTP helpers `get/post/put/delete[T]` |
 | `general.go` | Package-level calls not tied to an account: about, health, config, QR link, send, attachments |
-| `account.go` | `Account` type; all per-account calls are methods on `*Account` |
+| `account.go` | `Account` type; all per-account calls are methods on `*Account`; `AccountInfo` list entry (number and/or ACI) |
 | `signaltypes/types.go` | Payload structs for received messages (`MessageEnvelope`, `DataMessage`, `SyncMessage`, …). Types only. |
 
 ## Flow

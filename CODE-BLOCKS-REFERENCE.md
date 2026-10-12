@@ -22,7 +22,7 @@
 - `GetAttachments`, `GetAttachment`, `DeleteAttachment` — general.go:143–157 — attachments
 
 ## account.go — per-account calls
-- `Account`, `GetAccounts` — account.go:14–21 — account type + list
+- `Account`, `AccountInfo` (+ `ID`, `UnmarshalJSON`: string or object shape), `GetAccounts` — account.go:14–62 — account handle, list entry type + list
 - `Account_Configuration`, (a) `GetConfiguration`, `PostConfiguration` — account.go:34–44 — account config
 - (a) `PostLinkDevice`, `PostRegister`, `PostRegisterVerify`, `PostUnregister`, `PostRateLimitChallenge`, `PutSettings` — account.go:50–108 — registration/settings
 - `Account_PostUsernameResponse`, (a) `PostUsername`, `DeleteUsername` — account.go:116–133 — username

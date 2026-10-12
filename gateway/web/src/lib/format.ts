@@ -4,6 +4,14 @@ export function formatNumber(n: string): string {
 	return m ? `+27 ${m[1]} ${m[2]} ${m[3]}` : n;
 }
 
+/** The first 8 characters of an ACI, enough to tell accounts apart. */
+export const shortAci = (aci: string) => aci.slice(0, 8);
+
+/** Name for an account in dialog titles: its number, else its label, else a short ACI. */
+export function accountName(a: { number: string; label: string; aci: string }): string {
+	return a.number ? formatNumber(a.number) : a.label || `account ${shortAci(a.aci)}`;
+}
+
 export const E164 = /^\+[1-9]\d{6,14}$/;
 
 export const RECENT_MS = 24 * 3600 * 1000;

@@ -38,6 +38,7 @@ var (
 	ErrUnreachable = errors.New("signal API unreachable")
 
 	numberRe = regexp.MustCompile(`^\+[1-9]\d{6,14}$`)
+	aciRe    = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 	codeRe   = regexp.MustCompile(`^\d{6}$`)
 	pinRe    = regexp.MustCompile(`^\d{4,20}$`)
 )
@@ -50,8 +51,12 @@ type Device struct {
 	Primary  bool       `json:"primary"`
 }
 
+// Number is one account. ID is what the upstream API calls it: the phone
+// number, or the lowercase ACI when the account has none (Number is then "").
 type Number struct {
+	ID      string   `json:"id"`
 	Number  string   `json:"number"`
+	ACI     string   `json:"aci"`
 	Label   string   `json:"label"`
 	State   string   `json:"state"`
 	Devices []Device `json:"devices"`
@@ -81,6 +86,31 @@ func ValidateNumber(n string) error {
 		return fmt.Errorf("%w: number must be E.164 like +27821234567, got %q", ErrInvalid, n)
 	}
 	return nil
+}
+
+// ParseID checks an account id taken from a URL: an E.164 number or an ACI.
+// An ACI is returned lowercased, as upstream normalises it; on error the input
+// is returned unchanged so the audit row shows what was sent.
+func ParseID(id string) (string, error) {
+	if aciRe.MatchString(id) {
+		return strings.ToLower(id), nil
+	}
+	if numberRe.MatchString(id) {
+		return id, nil
+	}
+	return id, fmt.Errorf("%w: account id must be an E.164 number like +27821234567 or an ACI like 5f1c2d3e-4b5a-4c6d-8e7f-90a1b2c3d4e5, got %q", ErrInvalid, id)
+}
+
+// newNumber builds the entry for an account id, putting it in the number or
+// the aci field according to its form.
+func newNumber(id string) *Number {
+	n := &Number{ID: id, Devices: []Device{}}
+	if aciRe.MatchString(id) {
+		n.ACI = id
+	} else {
+		n.Number = id
+	}
+	return n
 }
 
 func validateLabel(l string) error {
@@ -184,23 +214,28 @@ func (s *Service) Numbers(ctx context.Context) ([]Number, error) {
 		return nil, s.upstream(err)
 	}
 
-	byNumber := map[string]*Number{}
+	byID := map[string]*Number{}
 	for _, r := range rows {
-		state := StateNotRegistered
+		n := newNumber(r.Number)
+		n.Label = r.Label
+		n.State = StateNotRegistered
 		if r.RegisterRequestedAt != nil {
-			state = StateAwaitingCode
+			n.State = StateAwaitingCode
 		}
-		byNumber[r.Number] = &Number{Number: r.Number, Label: r.Label, State: state, Devices: []Device{}}
+		byID[r.Number] = n
 	}
-	for i := range accounts {
-		a := &accounts[i]
-		n, ok := byNumber[a.Number]
+	for _, info := range accounts {
+		id := strings.ToLower(info.ID())
+		n, ok := byID[id]
 		if !ok {
-			n = &Number{Number: a.Number, Devices: []Device{}}
-			byNumber[a.Number] = n
+			n = newNumber(id)
+			byID[id] = n
 		}
+		// A numbered account may also report its ACI; keep both.
+		n.ACI = strings.ToLower(info.ACI)
 		n.State = StateRegistered
-		devs, err := a.GetDevices()
+		acc := signalmgr.Account{Number: id}
+		devs, err := acc.GetDevices()
 		if err != nil {
 			return nil, s.upstream(err)
 		}
@@ -209,11 +244,11 @@ func (s *Service) Numbers(ctx context.Context) ([]Number, error) {
 		}
 	}
 
-	out := make([]Number, 0, len(byNumber))
-	for _, n := range byNumber {
+	out := make([]Number, 0, len(byID))
+	for _, n := range byID {
 		out = append(out, *n)
 	}
-	slices.SortFunc(out, func(a, b Number) int { return strings.Compare(a.Number, b.Number) })
+	slices.SortFunc(out, func(a, b Number) int { return strings.Compare(a.ID, b.ID) })
 	return out, nil
 }
 
@@ -227,7 +262,8 @@ func (s *Service) AddNumber(ctx context.Context, actor, number, label string) er
 }
 
 func (s *Service) SetLabel(ctx context.Context, actor, number, label string) error {
-	err := errors.Join(ValidateNumber(number), validateLabel(label))
+	number, err := ParseID(number)
+	err = errors.Join(err, validateLabel(label))
 	if err == nil {
 		err = db.UpsertNumberLabel(ctx, s.db, number, label)
 	}
@@ -289,7 +325,7 @@ func (s *Service) Verify(ctx context.Context, actor, number, code, pin string) e
 }
 
 func (s *Service) Unregister(ctx context.Context, actor, number string, deleteAccount, deleteLocalData bool) error {
-	err := ValidateNumber(number)
+	number, err := ParseID(number)
 	if err == nil {
 		acc := signalmgr.Account{Number: number}
 		err = s.upstream(acc.PostUnregister(struct {
@@ -306,7 +342,7 @@ func (s *Service) Unregister(ctx context.Context, actor, number string, deleteAc
 }
 
 func (s *Service) RemoveDevice(ctx context.Context, actor, number string, id int64) error {
-	err := ValidateNumber(number)
+	number, err := ParseID(number)
 	if err == nil && id < 2 {
 		err = fmt.Errorf("%w: device id must be 2 or higher; device 1 is the primary", ErrInvalid)
 	}
@@ -319,7 +355,8 @@ func (s *Service) RemoveDevice(ctx context.Context, actor, number string, id int
 }
 
 func (s *Service) LinkDevice(ctx context.Context, actor, number, uri string) error {
-	err := errors.Join(ValidateNumber(number), validateLinkURI(uri))
+	number, err := ParseID(number)
+	err = errors.Join(err, validateLinkURI(uri))
 	if err == nil {
 		acc := signalmgr.Account{Number: number}
 		err = s.upstream(acc.PostLinkDevice(struct {
@@ -332,7 +369,8 @@ func (s *Service) LinkDevice(ctx context.Context, actor, number, uri string) err
 }
 
 func (s *Service) SetPin(ctx context.Context, actor, number, pin string) error {
-	err := errors.Join(ValidateNumber(number), validatePin(pin))
+	number, err := ParseID(number)
+	err = errors.Join(err, validatePin(pin))
 	if err == nil {
 		acc := signalmgr.Account{Number: number}
 		err = s.upstream(acc.PostPin(struct {
@@ -344,7 +382,7 @@ func (s *Service) SetPin(ctx context.Context, actor, number, pin string) error {
 }
 
 func (s *Service) RemovePin(ctx context.Context, actor, number string) error {
-	err := ValidateNumber(number)
+	number, err := ParseID(number)
 	if err == nil {
 		acc := signalmgr.Account{Number: number}
 		err = s.upstream(acc.DeletePin())
@@ -354,7 +392,8 @@ func (s *Service) RemovePin(ctx context.Context, actor, number string) error {
 }
 
 func (s *Service) RateLimit(ctx context.Context, actor, number, challengeToken, captcha string) error {
-	err := errors.Join(ValidateNumber(number), validateCaptcha(captcha))
+	number, err := ParseID(number)
+	err = errors.Join(err, validateCaptcha(captcha))
 	if challengeToken == "" || len(challengeToken) > maxToken {
 		err = errors.Join(err, fmt.Errorf("%w: challenge token must be 1 to %d characters", ErrInvalid, maxToken))
 	}

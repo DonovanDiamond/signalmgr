@@ -5,7 +5,7 @@
 ## cmd/
 - `version` — cmd/gateway/main.go — build version, `dev` unless set with `-ldflags "-X main.version=..."`
 - `main`, `loadConfig` — cmd/gateway/main.go — wiring and graceful shutdown; a missing config file means all defaults
-- `main` — cmd/fakesignal/main.go — dev server for the fake upstream (`-seed design`, `-link-after`)
+- `main` — cmd/fakesignal/main.go — dev server for the fake upstream (`-seed design`, `-accounts-format`, `-link-after`)
 - `main` — cmd/devseed/main.go — writes the design's labels into an empty gateway db (`-db`); does nothing if `numbers` has rows
 
 ## src/config/config.go
@@ -41,6 +41,7 @@
 - `Device`, `Number`, `GatewayInfo` — JSON views returned by the API
 - `Service`, `New` — service over db + `signalmgr`
 - `ValidateNumber` — E.164 check (other validators are private)
+- `ParseID` — account id from a URL: E.164 or ACI (lowercased), else `ErrInvalid`
 - (s) `Gateway`, `Numbers`, `Audit` — read: upstream about, merged number list, audit rows
 - (s) `AddNumber`, `SetLabel` — db-only writes
 - (s) `Register`, `Verify`, `Unregister` — registration lifecycle
@@ -50,7 +51,8 @@
 
 ## src/fakesignal/fakesignal.go
 - `ValidCode`, `RateLimitedNumber` — magic verification code; number that triggers a rate-limit challenge
-- `Server`, `New(seed)`, (Server) `ServeHTTP` — in-memory upstream; `seed` preloads numbers
+- `Server` (`Objects` switches `GET /v1/accounts` to the PR #896 shape), `New(seed)`, (Server) `ServeHTTP` — in-memory upstream; `seed` preloads numbers
+- `NumberlessACI` — id of the numberless account `SeedDesign` adds when `Objects` is set
 - `Server.LinkAfter` — delay after a QR/link-URI request before a new registered account appears (0 = never)
 - (Server) `SeedDesign` — adds the numbers shown in the UI design mockups
 - private handlers (about, accounts, register, verify, unregister, devices list/add/remove, qrcode, link URI, pin, rate-limit) mirror the upstream paths
@@ -73,8 +75,8 @@
 - session.svelte.ts: `session` — access/refresh token and user store with `login`, `refresh`, `clear`, `logout`, `isAdmin`; persisted in sessionStorage
 - theme.svelte.ts: `theme` — light/dark store with `current`, `toggle`; persisted
 - toast.svelte.ts: `toasts`, `dismiss`, `toastError`, `toastOk` — toast queue
-- format.ts: `formatNumber`, `E164`, `RECENT_MS`, `ageMs`, `ago` — number and age formatting, validation regex
-- types.ts: `Role`, `User`, `NumberState`, `Device`, `SignalNumber`, `GatewayInfo`, `ManagedUser` — API shapes
+- format.ts: `formatNumber`, `shortAci`, `accountName`, `E164`, `RECENT_MS`, `ageMs`, `ago` — number, account-name (label, number or short ACI) and age formatting, validation regex
+- types.ts: `Role`, `User`, `NumberState`, `Device`, `SignalNumber` (`id`, `aci`, `number` empty for a numberless account), `GatewayInfo`, `ManagedUser` — API shapes
 
 ## web/src/routes/
 - `+layout.ts`, `+layout.svelte` — SPA mode; session guard (only /login without a session)
@@ -88,8 +90,8 @@
 - `AccountMenu`, `ChangePasswordDialog` — signed-in menu (Users link for admins, change own password, sign out); change-password form
 - `CreateUserDialog`, `ResetPasswordDialog` — admin: create a local user; set a new password
 - `NumberRow` — one number: state, label, devices, actions
-- `AddNumberDialog`, `RegisterDialog`, `VerifyDialog`, `UnregisterDialog` — add / register / verify / unregister flows
-- `LinkGatewayDialog` — QR/URI so a phone's account links to this gateway; polls until a new account number appears
-- `AddDeviceDialog` — paste a `sgnl://linkdevice?` URI to add a device to one number (`POST /numbers/:number/devices`)
-- `RenameDialog` — set a number's label (also used right after a gateway link)
-- `RemoveDeviceDialog`, `PinDialog`, `RateLimitDialog` — remove device; set/remove PIN; rate-limit challenge
+- `AddNumberDialog`, `RegisterDialog`, `VerifyDialog`, `UnregisterDialog` — add / register / verify / unregister flows; Register and Verify take `id` + `name`, Unregister takes `item`
+- `LinkGatewayDialog` — QR/URI so a phone's account links to this gateway; polls until a new account id appears
+- `AddDeviceDialog` — paste a `sgnl://linkdevice?` URI to add a device to one number (`POST /numbers/:number/devices`); takes `id` + `name`
+- `RenameDialog` — set a number's label (also used right after a gateway link); takes `id` + `name`
+- `RemoveDeviceDialog`, `PinDialog`, `RateLimitDialog` — remove device; set/remove PIN; rate-limit challenge; each takes `id` + `name`

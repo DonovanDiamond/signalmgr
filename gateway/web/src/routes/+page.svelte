@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { formatNumber } from '$lib/format';
+	import { accountName, formatNumber, shortAci } from '$lib/format';
 	import { apiFetch, ApiError } from '$lib/api';
 	import { session } from '$lib/session.svelte';
 	import { toastError } from '$lib/toast.svelte';
@@ -21,9 +21,9 @@
 	type Dialog =
 		| { kind: 'add' }
 		| { kind: 'link-gateway' }
-		| { kind: 'label'; number: string }
-		| { kind: 'register' | 'verify' | 'add-device' | 'rename' | 'pin' | 'unregister' | 'rate-limit'; number: string }
-		| { kind: 'remove-device'; number: string; device: Device };
+		| { kind: 'label'; id: string }
+		| { kind: 'register' | 'verify' | 'add-device' | 'rename' | 'pin' | 'unregister' | 'rate-limit'; id: string }
+		| { kind: 'remove-device'; id: string; device: Device };
 
 	let phase = $state<'loading' | 'ready' | 'unreachable'>('loading');
 	let problem = $state('');
@@ -77,17 +77,23 @@
 	const summary = $derived.by(() => {
 		const total = `${numbers.length} ${numbers.length === 1 ? 'number' : 'numbers'}.`;
 		if (awaiting.length === 0) return total;
-		if (awaiting.length === 1) return `${total} ${awaiting[0].label || formatNumber(awaiting[0].number)} is waiting for its code.`;
+		if (awaiting.length === 1) return `${total} ${awaiting[0].label || formatNumber(awaiting[0].number) || `account ${shortAci(awaiting[0].aci)}`} is waiting for its code.`;
 		return `${total} ${awaiting.length} are waiting for their codes.`;
 	});
 
 	type RowKind = Exclude<Dialog['kind'], 'add' | 'link-gateway' | 'label'>;
 	function onaction(n: SignalNumber, kind: RowKind, device?: Device) {
-		if (kind === 'remove-device' && device) dialog = { kind, number: n.number, device };
-		else if (kind !== 'remove-device') dialog = { kind, number: n.number };
+		if (kind === 'remove-device' && device) dialog = { kind, id: n.id, device };
+		else if (kind !== 'remove-device') dialog = { kind, id: n.id };
 	}
 
-	const labelOf = (number: string) => numbers.find((n) => n.number === number)?.label ?? '';
+	const find = (id: string) => numbers.find((n) => n.id === id);
+	const labelOf = (id: string) => find(id)?.label ?? '';
+	// A just-added number is not in the list until the refresh lands, so fall back to formatting the id.
+	const nameOf = (id: string) => {
+		const n = find(id);
+		return n ? accountName(n) : formatNumber(id);
+	};
 </script>
 
 <Topbar {gateway} unreachable={phase === 'unreachable'} />
@@ -150,11 +156,11 @@
 		</section>
 	{:else}
 		<section class="ledger" aria-label="Line ledger" data-testid="ledger">
-			{#each numbers as n (n.number)}
+			{#each numbers as n (n.id)}
 				<NumberRow
 					item={n}
-					expanded={!!expanded[n.number]}
-					ontoggle={() => (expanded[n.number] = !expanded[n.number])}
+					expanded={!!expanded[n.id]}
+					ontoggle={() => (expanded[n.id] = !expanded[n.id])}
 					onaction={(kind, device) => onaction(n, kind, device)}
 				/>
 			{/each}
@@ -166,25 +172,28 @@
 </main>
 
 {#if dialog?.kind === 'add'}
-	<AddNumberDialog onclose={() => (dialog = null)} ondone={(number) => done({ kind: 'register', number })} />
+	<AddNumberDialog onclose={() => (dialog = null)} ondone={(number) => done({ kind: 'register', id: number })} />
 {:else if dialog?.kind === 'register'}
-	<RegisterDialog number={dialog.number} onclose={() => (dialog = null)} ondone={() => done({ kind: 'verify', number: (dialog as { number: string }).number })} />
+	<RegisterDialog id={dialog.id} name={nameOf(dialog.id)} onclose={() => (dialog = null)} ondone={() => done({ kind: 'verify', id: (dialog as { id: string }).id })} />
 {:else if dialog?.kind === 'verify'}
-	<VerifyDialog number={dialog.number} onclose={() => (dialog = null)} ondone={() => done()} />
+	<VerifyDialog id={dialog.id} name={nameOf(dialog.id)} onclose={() => (dialog = null)} ondone={() => done()} />
 {:else if dialog?.kind === 'link-gateway'}
-	<LinkGatewayDialog {numbers} load={fetchNumbers} onclose={() => (dialog = null)} ondone={(number) => done({ kind: 'label', number })} />
+	<LinkGatewayDialog {numbers} load={fetchNumbers} onclose={() => (dialog = null)} ondone={(id) => done({ kind: 'label', id })} />
 {:else if dialog?.kind === 'label'}
-	<RenameDialog number={dialog.number} current={labelOf(dialog.number)} title="Label the linked number" onclose={() => (dialog = null)} ondone={() => done()} />
+	<RenameDialog id={dialog.id} name={nameOf(dialog.id)} current={labelOf(dialog.id)} title="Label the linked number" onclose={() => (dialog = null)} ondone={() => done()} />
 {:else if dialog?.kind === 'rename'}
-	<RenameDialog number={dialog.number} current={labelOf(dialog.number)} title="Rename" onclose={() => (dialog = null)} ondone={() => done()} />
+	<RenameDialog id={dialog.id} name={nameOf(dialog.id)} current={labelOf(dialog.id)} title="Rename" onclose={() => (dialog = null)} ondone={() => done()} />
 {:else if dialog?.kind === 'add-device'}
-	<AddDeviceDialog number={dialog.number} onclose={() => (dialog = null)} ondone={() => done()} />
+	<AddDeviceDialog id={dialog.id} name={nameOf(dialog.id)} onclose={() => (dialog = null)} ondone={() => done()} />
 {:else if dialog?.kind === 'remove-device'}
-	<RemoveDeviceDialog number={dialog.number} device={dialog.device} onclose={() => (dialog = null)} ondone={() => done()} />
+	<RemoveDeviceDialog id={dialog.id} name={nameOf(dialog.id)} device={dialog.device} onclose={() => (dialog = null)} ondone={() => done()} />
 {:else if dialog?.kind === 'pin'}
-	<PinDialog number={dialog.number} onclose={() => (dialog = null)} ondone={() => done()} />
+	<PinDialog id={dialog.id} name={nameOf(dialog.id)} onclose={() => (dialog = null)} ondone={() => done()} />
 {:else if dialog?.kind === 'unregister'}
-	<UnregisterDialog number={dialog.number} onclose={() => (dialog = null)} ondone={() => done()} />
+	{@const item = find(dialog.id)}
+	{#if item}
+		<UnregisterDialog {item} onclose={() => (dialog = null)} ondone={() => done()} />
+	{/if}
 {:else if dialog?.kind === 'rate-limit'}
-	<RateLimitDialog number={dialog.number} onclose={() => (dialog = null)} ondone={() => done()} />
+	<RateLimitDialog id={dialog.id} name={nameOf(dialog.id)} onclose={() => (dialog = null)} ondone={() => done()} />
 {/if}

@@ -2,9 +2,8 @@
 	import Modal from './Modal.svelte';
 	import { apiFetch, seg } from '$lib/api';
 	import { act } from '$lib/act';
-	import { formatNumber } from '$lib/format';
 
-	let { number, onclose, ondone }: { number: string; onclose: () => void; ondone: () => void } = $props();
+	let { id, name, onclose, ondone }: { id: string; name: string; onclose: () => void; ondone: () => void } = $props();
 
 	let captcha = $state('');
 	let method = $state<'sms' | 'voice'>('sms');
@@ -21,7 +20,7 @@
 		busy = true;
 		const ok = await act(
 			() =>
-				apiFetch(`/api/numbers/${seg(number)}/register`, {
+				apiFetch(`/api/numbers/${seg(id)}/register`, {
 					method: 'POST',
 					body: JSON.stringify({ captcha: captcha.trim(), voice: method === 'voice' })
 				}),
@@ -32,12 +31,13 @@
 	}
 </script>
 
-<Modal title="Register {formatNumber(number)}" testid="dialog-register" {onclose}>
+<Modal title="Register {name}" testid="dialog-register" {onclose}>
 	<form onsubmit={submit} class="grid gap-4">
 		<p class="muted text-sm">
 			Solve the captcha at
 			<a href="https://signalcaptchas.org/registration/generate.html" target="_blank" rel="noopener noreferrer">signalcaptchas.org</a>,
-			then copy the link behind “Open Signal” and paste it here.
+			then copy the link behind “Open Signal” and paste it here. Registering needs a phone number; an account
+			without one is added by linking this gateway to a phone instead.
 		</p>
 		<div>
 			<label class="field-label" for="reg-captcha">Captcha token</label>

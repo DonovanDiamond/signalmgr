@@ -260,3 +260,14 @@ func TestUserAdministration(t *testing.T) {
 		t.Errorf("list = %+v, %v", us, err)
 	}
 }
+
+func TestNumberAcceptsACI(t *testing.T) {
+	ctx := context.Background()
+	x := open(t)
+	if err := InsertNumber(ctx, x, "5f1c2d3e-4b5a-4c6d-8e7f-90a1b2c3d4e5", "Outreach"); err != nil {
+		t.Fatalf("ACI id refused: %v", err)
+	}
+	if err := InsertNumber(ctx, x, "5F1C2D3E-4B5A-4C6D-8E7F-90A1B2C3D4E6", ""); err == nil {
+		t.Fatal("upper-case ACI accepted; ids are stored lowercase")
+	}
+}

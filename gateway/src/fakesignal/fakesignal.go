@@ -1,5 +1,6 @@
-// Package fakesignal is an in-memory stand-in for signal-cli-rest-api 0.101,
-// serving only the endpoints the gateway's signal service uses.
+// Package fakesignal is an in-memory stand-in for signal-cli-rest-api 0.101
+// (or, with Server.Objects, the account list shape of PR #896), serving only
+// the endpoints the gateway's signal service uses.
 package fakesignal
 
 import (
@@ -39,11 +40,14 @@ type Server struct {
 	// account appears, simulating a phone scanning the gateway's link. Zero
 	// means never. Set it before serving.
 	LinkAfter time.Duration
+	// Objects makes GET /v1/accounts answer [{"number","aci"}] as in PR #896
+	// instead of 0.101's ["+27..."]. Set it before serving.
+	Objects bool
 
 	mux *http.ServeMux
 
 	mu       sync.Mutex
-	order    []string // registered numbers in registration order
+	order    []string // registered account ids (number, or ACI if numberless) in registration order
 	devices  map[string][]device
 	pending  map[string]bool // register called, not yet verified
 	pins     map[string]bool
@@ -124,8 +128,27 @@ func (s *Server) about(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) accounts(w http.ResponseWriter, _ *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	writeJSON(w, http.StatusOK, append([]string{}, s.order...))
+	if !s.Objects {
+		writeJSON(w, http.StatusOK, append([]string{}, s.order...))
+		return
+	}
+	type account struct {
+		Number string  `json:"number"`
+		ACI    *string `json:"aci"`
+	}
+	out := []account{}
+	for _, id := range s.order {
+		if isACI(id) {
+			out = append(out, account{ACI: &id})
+		} else {
+			out = append(out, account{Number: id})
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
 }
+
+// isACI tells a numberless account's id from a phone number.
+func isACI(id string) bool { return !strings.HasPrefix(id, "+") }
 
 type registerBody struct {
 	Captcha  string `json:"captcha"`
@@ -214,7 +237,12 @@ func (s *Server) deleteDevice(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// SeedDesign adds the numbers the UI design mockups show. Call before serving.
+// NumberlessACI is the id of the numberless account SeedDesign adds when
+// Objects is set.
+const NumberlessACI = "5f1c2d3e-4b5a-4c6d-8e7f-90a1b2c3d4e5"
+
+// SeedDesign adds the numbers the UI design mockups show, plus a numberless
+// account when Objects is set. Call after setting Objects, before serving.
 func (s *Server) SeedDesign() {
 	now := time.Now()
 	ms := func(ago time.Duration) int64 { return now.Add(-ago).UnixMilli() }
@@ -225,6 +253,12 @@ func (s *Server) SeedDesign() {
 		device{ID: 3, Name: "Pastor's tablet", CreationTimestamp: ms(40 * day), LastSeenTimestamp: ms(2 * day)})
 	s.add("+27715550198",
 		device{ID: 1, Name: "Gateway (this server)", CreationTimestamp: ms(150 * day), LastSeenTimestamp: ms(time.Minute)})
+	if s.Objects {
+		// Created by linking the gateway to a phone, so the phone is the primary device.
+		s.add(NumberlessACI,
+			device{ID: 1, Name: "Outreach phone (Android)", CreationTimestamp: ms(200 * day), LastSeenTimestamp: ms(time.Hour)},
+			device{ID: 2, Name: "Gateway (this server)", CreationTimestamp: ms(20 * day), LastSeenTimestamp: ms(time.Minute)})
+	}
 }
 
 func (s *Server) linkDevice(w http.ResponseWriter, r *http.Request) {

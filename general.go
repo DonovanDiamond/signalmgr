@@ -87,6 +87,7 @@ type SendMessageV2_LinkPreview struct {
 }
 
 type SendMessageV2 struct {
+	// Sending account: E.164 number, or ACI for an account without a phone number.
 	Number            string                         `json:"number"`
 	Recipients        []string                       `json:"recipients"`
 	Message           string                         `json:"message"`

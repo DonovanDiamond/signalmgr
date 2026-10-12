@@ -34,9 +34,11 @@ See also [README.md](README.md) and [IMPLEMENTATION.md](IMPLEMENTATION.md). Each
 
 **Decided.** Against an in-memory fake of signal-cli-rest-api written in Go (`src/fakesignal`). No real server and no usable Docker were available. Behaviour against a real server is unverified.
 
-## Numbers are keyed by E.164 text
+## Numbers are keyed by account id: E.164 text, or the ACI for a numberless account
 
-**Decided.** The number string, validated as `+` then 7 to 15 digits, is the primary key and the URL parameter. No surrogate id.
+**Decided.** The account id is what signal-cli-rest-api calls the account: the number when it has one, else its ACI (lowercase UUID). The id is the primary key of `numbers` and the `:number` URL parameter. No surrogate id. Path ids are accepted when they are E.164 (`+` then 7 to 15 digits) or an ACI (any case, lowercased); anything else is a 400 naming both forms. Adding, registering and verifying stay E.164 only, because registration needs a phone number. Migration `003` widens the `numbers` CHECK so UUIDs fit; no data changes. `GET /api/numbers` items carry `id`, `number` (may be empty) and `aci` (may be empty).
+
+**Open.** Numberless accounts come from signal-cli-rest-api PR #896 (unmerged, needs signal-cli 0.14.9), so the `GET /v1/accounts` object shape and the ACI-in-path behaviour are taken from the PR diff and the fake (`fakesignal -accounts-format objects`), not from a real server. The library accepts both the 0.101 string list and the #896 object list. If an account later gains a number, its label (stored under the ACI) will not follow it.
 
 ## Does a local account ever fall back to AD?
 

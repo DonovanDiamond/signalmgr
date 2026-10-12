@@ -27,7 +27,12 @@ export interface Device {
 }
 
 export interface SignalNumber {
+	/** Account identifier used in URLs: the number, or the ACI for a numberless account. */
+	id: string;
+	/** Empty for an account that has no phone number. */
 	number: string;
+	/** Empty when the gateway does not know the account's ACI. */
+	aci: string;
 	label: string;
 	state: NumberState;
 	devices: Device[];

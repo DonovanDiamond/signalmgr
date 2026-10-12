@@ -132,7 +132,9 @@ Each method is based on the methods in [signal-cli-rest-api swagger docs](https:
 
 ### Account Management
 
-- `GetAccounts() ([]Account, error)`: Lists all Signal accounts linked to the service.
+Accounts without a phone number: such an account has an empty `Number` and only an ACI. Use `AccountInfo.ID()` (the ACI) wherever an account number is taken, e.g. `Account{Number: info.ID()}` or `SendMessageV2.Number`. Registration still needs a phone number; numberless accounts come from linking. The server side is signal-cli-rest-api PR #896, which was unmerged when this was written.
+
+- `GetAccounts() ([]AccountInfo, error)`: Lists all Signal accounts linked to the service. `AccountInfo{Number, ACI}` has an `ID()` method (number, else ACI); it decodes both the 0.101 list of numbers and the object list of signal-cli-rest-api PR #896.
 - (a) `GetConfiguration() (Account_Configuration, error)`: Retrieve the account configuration.
 - (a) `PostConfiguration(data Account_Configuration) error`: Update the account configuration.
 - (a) `PostRegister(captcha string, useVoice bool) error`: Register a phone number with the Signal network.
