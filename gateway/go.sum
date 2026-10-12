@@ -4,6 +4,8 @@ github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 h1:mFRzDkZVAjdal+
 github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358/go.mod h1:chxPXzSsl7ZWRAuOIE23GDNzjWuZquvFlgA8xmpunjU=
 github.com/DonovanDiamond/go-ad-auth/v3 v3.0.0-20250204084648-661774137a22 h1:LKGHg6oq/ymE0TRYRYLEVZVfHnoMwiofMKQBox+DC3Q=
 github.com/DonovanDiamond/go-ad-auth/v3 v3.0.0-20250204084648-661774137a22/go.mod h1:8Yy9BCiFbYVNPgiB4Wga6FWUWMDTzYF7etS4IzSJE9k=
+github.com/DonovanDiamond/signalmgr v0.4.0 h1:Wy3xfSjciUww+l8pobQvRm9rlhYDAv98eGm6DKDYNvo=
+github.com/DonovanDiamond/signalmgr v0.4.0/go.mod h1:GIrXmIOiP+ZfB5LLtRfVlTDrmHPBOKiHfBJ5vvXt+ao=
 github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa h1:LHTHcTQiSGT7VVbI0o4wBRNQIgn917usHWOd6VAffYI=
 github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa/go.mod h1:cEWa1LVoE5KvSD9ONXsZrj0z6KqySlCCNKHlLzbqAt4=
 github.com/andybalholm/brotli v1.2.2 h1:HzTuoo2ErYQqf5qvcJInB8uvqSVxRttzkFexPWtnceM=

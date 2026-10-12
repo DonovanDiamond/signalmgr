@@ -46,7 +46,11 @@ With no `config.yaml` every setting takes its default: listen on `:8080`, databa
 
 ### Docker
 
-`example/` holds a Docker Compose setup that runs the gateway with a real signal-cli-rest-api, or with fake data (`--profile fake`). See [example/README.md](example/README.md). The image builds from the repository root: `docker build -f gateway/Dockerfile .`.
+`example/` holds a Docker Compose setup that runs the gateway with a real signal-cli-rest-api, or with fake data (`--profile fake`). See [example/README.md](example/README.md). The image builds from the repository root: `docker build -f gateway/Dockerfile .`, or `make image` there, which tags it with the release version.
+
+### Versions
+
+The gateway shares its version with the library: `gateway/vX.Y.Z` requires `signalmgr vX.Y.Z`. `gateway/go.mod` has no `replace`; the `go.work` at the repository root (`use . ./gateway`) makes local builds use the library source in the same checkout. Use `GOWORK=off` to build against the pinned release. Releases are cut with `make release VERSION=vX.Y.Z` from the repository root; the binary reports the version set with `-X main.version`.
 
 ### Previewing the UI with sample data
 

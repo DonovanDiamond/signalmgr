@@ -1,3 +1,7 @@
+# Release builds pass VERSION (see the root Makefile); a plain build reports dev.
+VERSION ?= dev
+LDFLAGS = -X main.version=$(VERSION)
+
 .PHONY: help web build-linux build-windows test fakesignal run clean
 
 help:
@@ -15,11 +19,11 @@ web:
 # The UI is embedded at compile time, so a stale web/build ships stale screens.
 build-linux: web
 	mkdir -p dist
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/gateway-linux-amd64 ./cmd/gateway
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/gateway-linux-amd64 ./cmd/gateway
 
 build-windows: web
 	mkdir -p dist
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o dist/gateway-windows-amd64.exe ./cmd/gateway
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/gateway-windows-amd64.exe ./cmd/gateway
 
 test:
 	go vet ./...

@@ -2,7 +2,9 @@
 
 See also [README.md](README.md) (what it is) and [QUESTIONS.md](QUESTIONS.md) (why).
 
-Go module `github.com/DonovanDiamond/signalmgr/gateway`, nested in the signalmgr repository with `replace github.com/DonovanDiamond/signalmgr => ../`, so fiber, sqlx and the rest stay out of the library's own `go.mod`.
+Go module `github.com/DonovanDiamond/signalmgr/gateway`, nested in the signalmgr repository, so fiber, sqlx and the rest stay out of the library's own `go.mod`.
+
+It requires the library at its own release version (`gateway/vX.Y.Z` needs `signalmgr vX.Y.Z`) and has no `replace`. The root `go.work` (`use . ./gateway`) points local builds at the checkout's library source; `GOWORK=off` builds against the pinned release. The root `Makefile` (`make release`, `make image`) keeps the two tags and the image tag in step; the binary's `version` variable is set with `-ldflags "-X main.version=..."` (default `dev`).
 
 ## Layout
 

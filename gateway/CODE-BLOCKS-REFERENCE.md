@@ -3,6 +3,7 @@
 `(s)` = method on `*Service` (or `*server` in `src/api`). Files only, no line numbers; find items with grep.
 
 ## cmd/
+- `version` — cmd/gateway/main.go — build version, `dev` unless set with `-ldflags "-X main.version=..."`
 - `main`, `loadConfig` — cmd/gateway/main.go — wiring and graceful shutdown; a missing config file means all defaults
 - `main` — cmd/fakesignal/main.go — dev server for the fake upstream (`-seed design`, `-link-after`)
 - `main` — cmd/devseed/main.go — writes the design's labels into an empty gateway db (`-db`); does nothing if `numbers` has rows

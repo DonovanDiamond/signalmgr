@@ -23,6 +23,9 @@ import (
 	"github.com/DonovanDiamond/signalmgr/gateway/web"
 )
 
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
 	configPath := flag.String("config", "config.yaml", "path to config file; a missing file means all defaults")
 	flag.Parse()
@@ -58,7 +61,7 @@ func main() {
 			log.Fatal().Err(err).Msg("server stopped unexpectedly")
 		}
 	}()
-	log.Info().Str("listen", cfg.Listen).Str("signal_api_url", cfg.SignalAPIURL).Msg("gateway listening")
+	log.Info().Str("version", version).Str("listen", cfg.Listen).Str("signal_api_url", cfg.SignalAPIURL).Msg("gateway listening")
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

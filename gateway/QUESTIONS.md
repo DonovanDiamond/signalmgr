@@ -4,7 +4,7 @@ See also [README.md](README.md) and [IMPLEMENTATION.md](IMPLEMENTATION.md). Each
 
 ## 1. Where does the gateway live?
 
-**Decided.** A nested Go module at `gateway/` (`github.com/DonovanDiamond/signalmgr/gateway`) with `replace github.com/DonovanDiamond/signalmgr => ../`. This keeps fiber, sqlx and the other dependencies out of the library's `go.mod`.
+**Decided.** A nested Go module at `gateway/` (`github.com/DonovanDiamond/signalmgr/gateway`). This keeps fiber, sqlx and the other dependencies out of the library's `go.mod`.
 
 ## 2. Which browsers?
 
@@ -133,3 +133,7 @@ See also [README.md](README.md) and [IMPLEMENTATION.md](IMPLEMENTATION.md). Each
 ## Missing config file
 
 **Decided.** `-config` pointing at a missing file means all defaults. `main` uses `config.Defaults().Resolve()`.
+
+## Shared version, go.work and release
+
+**Decided.** The library and the gateway carry one version: tag `vN` (library) and `gateway/vN` (gateway), with git tags as the only source of truth. `gateway/go.mod` requires the library at that same version and has no `replace` (the earlier `replace ../` made the gateway module uninstallable). Local development uses a committed `go.work` at the repository root (`use . ./gateway`). `make release VERSION=vN` tags the library first (its module zip excludes `gateway/`, so its hash is unaffected), then pins and tags the gateway. The image tag is the `git describe` of the `gateway/v*` tags with the prefix stripped; `:latest` only for exact releases.

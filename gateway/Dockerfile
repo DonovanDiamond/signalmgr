@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# Build context is the repository root: gateway/go.mod replaces the library with ../.
-#   docker build -f gateway/Dockerfile .
+# Build context is the repository root: go.work builds the gateway against the library source in this checkout.
+#   docker build -f gateway/Dockerfile --build-arg VERSION=v0.4.0 .
 
 # --- web: build the SvelteKit UI (adapter-static) ---
 FROM node:22-bookworm-slim AS web
@@ -12,7 +12,9 @@ RUN npm run build
 
 # --- go: static binaries, CGO disabled ---
 FROM golang:1.25-bookworm AS build
+ARG VERSION=dev
 WORKDIR /src
+COPY go.work go.work.sum* ./
 COPY go.mod go.sum ./
 COPY *.go ./
 COPY signaltypes/ ./signaltypes/
@@ -22,7 +24,7 @@ RUN go mod download
 COPY gateway/ ./
 COPY --from=web /src/gateway/web/build/ ./web/build/
 # fakesignal and devseed only serve the compose "fake" profile; they are tiny.
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w" -o /out/ \
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/ \
     ./cmd/gateway ./cmd/fakesignal ./cmd/devseed
 
 # --- runtime: plain HTTP, TLS terminates at a reverse proxy ---

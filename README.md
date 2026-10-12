@@ -220,6 +220,14 @@ var apiErr *signalmgr.APIError
 if errors.As(err, &apiErr) { fmt.Println(apiErr.Status, apiErr.ChallengeTokens) }
 ```
 
+## Releasing
+
+The library and the Signal Gateway in `gateway/` share one version: release `vX.Y.Z` is the tag `vX.Y.Z` (library) plus `gateway/vX.Y.Z` (gateway, which requires the library at that same version). Git tags are the only source of truth. `make release VERSION=vX.Y.Z` checks that you are on a clean `main` and that the version is new and the highest, tags and pushes the library, pins `gateway/go.mod` to it, then commits, tags and pushes the gateway. `make -n release VERSION=vX.Y.Z` shows the steps without running them. Day to day, the committed `go.work` makes `gateway/` build against the local library source.
+
+## Docker image
+
+`make image` builds the gateway image as `$(IMAGE):<version>` (default `IMAGE=signal-gateway`), where the version comes from `git describe` on the `gateway/v*` tags, e.g. `v0.4.0` on a tagged clean commit and `v0.4.0-3-gabc123` otherwise. `:latest` is added only for an exact release. Docker runs through `$(DOCKER)` (default `sudo docker`). `make version` prints the computed version; `make help` lists all targets.
+
 ## Related Projects
 
 - [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) - Signal CLI REST API that this library interacts with.

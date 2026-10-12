@@ -27,5 +27,13 @@ Receiving messages:
 - Optional query params: one `<Method>Options` struct per call (e.g. `GetGroupsOptions`); zero value = omitted. Built with `url.Values` and appended via `withQuery`.
 - Binary responses (avatars, QR code, attachments) use `getRaw` and return `[]byte`.
 
+## Build and release
+| Path | Role |
+|---|---|
+| `go.work` | `use . ./gateway`: local builds of the gateway use this library source |
+| `Makefile` | `help`, `test`, `vet`, `build`, `image`, `version`, `release`; `IMAGE` (default `signal-gateway`), `DOCKER` (default `sudo docker`), `VERSION` |
+
+Library and gateway share one version: tags `vN` and `gateway/vN`; `make release VERSION=vN` tags the library, pins `gateway/go.mod` to it, then tags the gateway.
+
 ## gateway/ (Signal Gateway app)
 Separate Go module; see gateway/ARCHITECTURE.md and gateway/CODE-BLOCKS-REFERENCE.md.

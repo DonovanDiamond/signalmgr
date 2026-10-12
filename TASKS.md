@@ -10,6 +10,7 @@
 - 2026-10-12 — Committed T13 before reading 4 secret-scan hits; checked after: all benign. Rule: inspect scan hits before commit.
 - 2026-10-12 — clean (session start, HEAD d65a5fb)
 - 2026-10-12 — T2 manifest clean; brief changed mid-run (alias dropped), worker complied.
+- 2026-10-12 — T17: first coder returned "placeholder" and left a server running; orchestrator recovered from diff and killed it.
 - 2026-10-12 — T7 manifest accepted; signaltypes per-field claims unverified (structure-only check by orchestrator).
 
 ## Tasks
@@ -31,3 +32,4 @@
 - [x] T16 — gateway/Dockerfile + gateway/example/ (signal-cli-rest-api 0.101 json-rpc + gateway; profile fake). Governor read Dockerfile + compose; compose config parses (reported); native build+run+login against fake (reported). NOT run in Docker (daemon permission denied).
 - [ ] Open for user: gateway/QUESTIONS.md (token_ttl alias, AD abandoned-bind cap, refresh reuse detection, + Phase 1 items). Gateway pushed 2026-10-12 (origin/main = 53d4017).
 - [x] T12 — Device-registration UI: 5 design renditions (published v3, all 5 files read by Governor before publish; not rendered/screenshotted) on a Design canvas (https://claude.ai/artifact/5KafbQcfDsVFEMazbRhsh5). Plan: scratchpad/plans/ui-renditions.md. 5 × sonnet-coder in parallel, one artboard each (disjoint). 2026-10-12, budget 6 min each. User override: evergreen browsers, not Firefox ESR 115 → record in QUESTIONS.md when the app is scaffolded.
+- [x] T17 — Shared versions (vN + gateway/vN, gateway requires root vN, go.work, no replace) + root Makefile (image with git-describe tag, release). Lane 2 (build config + go.mod). Plan: scratchpad/plans/release-plan.md. 2026-10-12, budget 25 min. Governor verified: diff read (Makefile, go.work, Dockerfile, go.mod, main.go), gateway build+vet ok (GOFLAGS=-mod=readonly). Reported: tests ok, make -n outputs. Not run: docker build. User env GOFLAGS=-mod=mod breaks plain go cmds under go.work. Released v0.5.0 via make release.

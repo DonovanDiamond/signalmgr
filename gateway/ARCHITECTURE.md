@@ -8,7 +8,7 @@
 ## Layout
 | Path | Role |
 |---|---|
-| `cmd/gateway/main.go` | Entrypoint: `-config` flag, wires config → db → auth → signal service → api, graceful shutdown |
+| `cmd/gateway/main.go` | Entrypoint: `-config` flag, `version` var (set by `-X main.version`), wires config → db → auth → signal service → api, graceful shutdown |
 | `cmd/fakesignal/main.go` | Dev entrypoint: serves the fake signal-cli-rest-api (`-listen`, `-empty`, `-seed design`, `-link-after`) |
 | `cmd/devseed/main.go` | Dev tool: writes the design's number labels into an empty gateway database (`-db`) |
 | `src/config` | `config.yaml` loading, exported `Defaults()` / `Resolve()`, env overrides, validation |
@@ -18,6 +18,7 @@
 | `src/fakesignal` | In-memory fake of the signal-cli-rest-api endpoints the gateway uses |
 | `src/api` | Fiber app: routes, auth/role middleware, error mapping, body limit, per-route failure rate limit, trusted proxies, SPA serving |
 | `web/` | SvelteKit static UI; `web/embed.go` embeds `web/build` (`web.FS()`); `web/notbuilt/` is the placeholder page served when there is no build; `web/build/.gitkeep` keeps the embed directory present in a clean checkout |
+| `../go.work`, `../Makefile` | Workspace (`use . ./gateway`) for local builds against the library source; root targets `image` and `release` build and tag the gateway at the shared version (`gateway/go.mod` requires the same `signalmgr` version, no `replace`) |
 | `config.example.yaml`, `Makefile` | Sample config; targets `web`, `build-linux`, `build-windows`, `test`, `fakesignal`, `run`, `clean` |
 
 ## Flow
