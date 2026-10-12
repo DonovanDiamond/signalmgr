@@ -45,3 +45,6 @@
 
 ## signaltypes/types.go
 - 43 payload structs for received envelopes (`MessageEnvelope`, `DataMessage`, `SyncMessage`, `CallMessage`, `Payment`, …) — no funcs
+
+## api_test.go
+- httptest tests: escaped path segment survives (DisablePathNormalizing), plain-text discarded body OK, *APIError with challenge_tokens

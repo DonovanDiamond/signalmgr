@@ -54,6 +54,11 @@ var methods = map[string]func(string) *fiber.Agent{
 // Returns the response as raw bytes.
 func request(method, path string, data any) (raw []byte, err error) {
 	req := methods[method](strings.TrimSuffix(API_URL, "/") + path)
+	// The client overwrites the per-request flag, so set it here to keep
+	// escaped segments such as %2F in group IDs from being decoded.
+	if req.HostClient != nil { // nil when API_URL failed to parse; Bytes reports that error
+		req.HostClient.DisablePathNormalizing = true
+	}
 	if data != nil {
 		body, err := json.Marshal(data)
 		if err != nil {

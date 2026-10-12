@@ -4,7 +4,7 @@
 - Answer → haiku-scout. Change → sonnet-coder. Never a coder for a question.
 - Verified / reported / missing are three different things. I never present the last two as the first.
 - Nobody waits. Over budget = one check, then kill, then re-read git state before re-dispatching.
-- Never re-run a suite that passed with no change since. Last tested: none
+- Never re-run a suite that passed with no change since. Last tested: go test ./... passed on tree of v0.3.0
 - Released: v0.2.0 at 9c9371d (2026-10-12)
 ### Governor log
 - 2026-10-12 — clean (session start, HEAD d65a5fb)
@@ -22,5 +22,5 @@
 - [x] T8 — Exported APIError (status, message, account, challenge_tokens) replaces errorResponse. Diff read + build/vet rc=0 verified by Governor; non-2xx path not exercised. Pushed with T7.
 - [x] T9 — 15 endpoints wrapped + receive/groups/contacts/qrcode options (orchestrator, 3 coders). Governor verified: build/vet/gofmt rc=0; polls, remote-delete, local-data, pin paths+methods and all 7 receive params match spec.
 - [x] T10 — PathEscape on all path segments; discard-body calls use request(). Governor verified: no [any] left, no unescaped %s path, build/vet rc=0.
-- [ ] T11 — Add api_test.go (httptest): escaped path survives fasthttp normalizing, plain-text success body OK, APIError fields; fix if needed (Lane 1, sonnet-coder, 2026-10-12, budget 6 min). Then tag v0.3.0 + push.
-- [ ] Backlog: no tests in repo.
+- [x] T11 — api_test.go added (3 tests). Found real bug: fasthttp decoded %2F; fixed via HostClient.DisablePathNormalizing. Governor verified: test FAILs without fix, all pass with it. Tagged v0.3.0.
+- [ ] Backlog: tests cover api.go only; per-endpoint tests none.
