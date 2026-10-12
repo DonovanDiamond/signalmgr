@@ -4,7 +4,7 @@ go 1.25.5
 
 require (
 	github.com/DonovanDiamond/go-ad-auth/v3 v3.0.0-20250204084648-661774137a22
-	github.com/DonovanDiamond/signalmgr v0.4.0
+	github.com/DonovanDiamond/signalmgr v0.5.0
 	github.com/gofiber/fiber/v3 v3.5.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jmoiron/sqlx v1.4.0
