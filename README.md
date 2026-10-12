@@ -133,20 +133,20 @@ Each method is based on the methods in [signal-cli-rest-api swagger docs](https:
 - `GetMessages()`: Receive Signal Messages, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `normal` or `native` mode.
 - `GetMessagesSocket(messages chan<- MessageResponse)`: Opens a socket to receive Signal Messages and sends them to the `messages` channel, when [bbernhard/signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) is running in `json-rpc` mode.
 - `PostSend(data SendMessageV2)`: Send a message (supports text, mentions, attachments, etc.).
-- `PostReaction(data struct{ Reaction string; Recipient string; Timestamp int64 })`: Send a reaction to a message.
-- `DeleteReaction(data struct{ Reaction string; Recipient string; Timestamp int64 })`: Remove a reaction from a message.
+- `PostReaction(data struct{ Reaction string; Recipient string; TargetAuthor string; Timestamp int64 })`: Send a reaction to a message.
+- `DeleteReaction(data struct{ Reaction string; Recipient string; TargetAuthor string; Timestamp int64 })`: Remove a reaction from a message.
 - `PostReceipts(data struct{ ReceiptType string; Recipient string; Timestamp int64 })`: Send a read/viewed receipt for a message.
 
 ### Contacts
 
 - `GetContacts()`: List all contacts for the account.
-- `PostContact(data struct{ Name string; Recipient string })`: Add or update contact information.
+- `PostContact(data struct{ ExpirationInSeconds int; Name string; Recipient string })`: Add or update contact information.
 - `PutContactsSync()`: Sync contacts across devices.
 
 ### Groups
 
 - `GetGroups()`: List all Signal groups associated with the account.
-- `PostCreateGroup(data struct{ Name string; Members []string; Permissions struct{ AddMembers string } })`: Create a new group with specified members.
+- `PostCreateGroup(data struct{ Description string; ExpirationTime int; GroupLink string; Members []string; Name string; Permissions struct{ AddMembers string; EditGroup string } })`: Create a new group with specified members.
 - `PostGroupAdmins(groupID string, data struct{ Admins []string })`: Add admins to a group.
 - `DeleteGroupAdmins(groupID string, data struct{ Admins []string })`: Remove admins from a group.
 - `PostGroupMembers(groupID string, data struct{ Members []string })`: Add members to a group.

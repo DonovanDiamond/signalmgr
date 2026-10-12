@@ -12,7 +12,7 @@ import (
 
 var API_URL = "http://127.0.0.1:8080"
 
-type errorResposne struct {
+type errorResponse struct {
 	Error string `json:"error"`
 }
 
@@ -120,7 +120,7 @@ func completeRequest(req *fiber.Agent) (resp []byte, err error) {
 		err = fmt.Errorf("%d errors on post request: %+v", len(errs), errs)
 		return
 	}
-	var errResp errorResposne
+	var errResp errorResponse
 	if json.Unmarshal(resp, &errResp); errResp.Error != "" {
 		errResp.Error = strings.ReplaceAll(errResp.Error, "\n", "")
 		err = errors.New(errResp.Error)
